@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, ChevronLeft, ChevronRight, Loader2, Send } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getSurvey, surveyQuestions } from "@/lib/constants";
 import { RatingSlider } from "@/components/RatingSlider";
 import type { RatingValue, SatisfactionKey, SurveyId } from "@/lib/types";
@@ -21,6 +21,10 @@ export function SurveyForm({ surveyId = "venta" }: { surveyId?: SurveyId }) {
   const [complete, setComplete] = useState(false);
   const groups = [{ title: "Evaluación general", note: "Su percepción sobre nuestra relación comercial.", questions: questions.filter((q) => q.block === "general") }, { title: survey.specificTitle, note: survey.specificNote, questions: questions.filter((q) => q.block === "specific") }];
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step, complete]);
+
   const payload = { customer, satisfaction: { surveyId, module: survey.name, ratings, additionalComments: comment }, consent };
   function validateCurrent() {
     const next = validateSurveyPayload(payload);
@@ -37,7 +41,7 @@ export function SurveyForm({ surveyId = "venta" }: { surveyId?: SurveyId }) {
         return;
       }
     }
-    setStep((value) => Math.min(value + 1, 2)); window.scrollTo({ top: 0, behavior: "smooth" });
+    setStep((value) => Math.min(value + 1, 2));
   }
   async function submit() {
     const validation = validateSurveyPayload(payload); setErrors(validation.errors); if (!validation.valid) return;
@@ -53,7 +57,7 @@ export function SurveyForm({ surveyId = "venta" }: { surveyId?: SurveyId }) {
     <div className="survey-intro"><p className="eyebrow">Encuesta de satisfacción</p><h1>Su experiencia con <span>Poleas RP</span>.</h1><p>Nos lleva menos de tres minutos. Sus respuestas nos ayudan a mejorar cada compra.</p></div>
     <div className="progress" aria-label={`Paso ${step + 1} de 3`}><span style={{ width: `${((step + 1) / 3) * 100}%` }}/><p>Paso {step + 1} de 3</p></div>
     {step === 0 && <section className="form-section"><p className="eyebrow">Antes de comenzar</p><h2>Datos del cliente</h2><p className="section-copy">Solo pedimos la información necesaria para comprender su respuesta.</p><div className="fields-grid"><Field label="Cliente *" error={errors.company}><input className="field-input" value={customer.company} onChange={(e) => setCustomer({...customer, company:e.target.value})}/></Field><Field label="Responsable encuestado *" error={errors.contactName}><input className="field-input" value={customer.contactName} onChange={(e) => setCustomer({...customer, contactName:e.target.value})}/></Field><Field label="Cargo o sector"><input className="field-input" value={customer.position} onChange={(e) => setCustomer({...customer, position:e.target.value})}/></Field><Field label="Correo electrónico"><input type="email" className="field-input" value={customer.email} onChange={(e) => setCustomer({...customer, email:e.target.value})}/></Field></div><Nav onNext={next}/></section>}
-    {step > 0 && <section className="form-section"><p className="eyebrow">Encuesta {survey.name}</p><h2>{groups[step - 1].title}</h2><p className="section-copy">{groups[step - 1].note}</p><div className="questions">{groups[step - 1].questions.map((question) => <Rating key={question.key} question={question} value={ratings[question.key]} error={errors[question.key]} onChange={(value) => setRatings({...ratings, [question.key]: value})}/>)}</div>{step === 2 && <><Field label="¿Desea dejarnos algún comentario adicional?"><textarea className="field-input comment" value={comment} onChange={(e) => setComment(e.target.value)} /></Field><label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)}/><span>Acepto que Poleas RP utilice esta información para analizar y mejorar sus productos y servicios.</span></label>{errors.consent && <p className="field-error">{errors.consent}</p>}{errors.form && <p className="form-error"><AlertCircle size={18}/>{errors.form}</p>}</>}<Nav onBack={() => {setStep(step - 1); window.scrollTo({top:0, behavior:"smooth"});}} onNext={step === 2 ? submit : next} submit={step === 2} loading={submitting}/></section>}
+    {step > 0 && <section className="form-section"><p className="eyebrow">Encuesta {survey.name}</p><h2>{groups[step - 1].title}</h2><p className="section-copy">{groups[step - 1].note}</p><div className="questions">{groups[step - 1].questions.map((question) => <Rating key={question.key} question={question} value={ratings[question.key]} error={errors[question.key]} onChange={(value) => setRatings({...ratings, [question.key]: value})}/>)}</div>{step === 2 && <><Field label="¿Desea dejarnos algún comentario adicional?"><textarea className="field-input comment" value={comment} onChange={(e) => setComment(e.target.value)} /></Field><label className="consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)}/><span>Acepto que Poleas RP utilice esta información para analizar y mejorar sus productos y servicios.</span></label>{errors.consent && <p className="field-error">{errors.consent}</p>}{errors.form && <p className="form-error"><AlertCircle size={18}/>{errors.form}</p>}</>}<Nav onBack={() => setStep(step - 1)} onNext={step === 2 ? submit : next} submit={step === 2} loading={submitting}/></section>}
   </main>;
 }
 
