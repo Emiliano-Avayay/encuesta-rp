@@ -10,7 +10,9 @@ type SessionPayload = {
 };
 
 function secret() {
-  return process.env.AUTH_SECRET || "demo-auth-secret-change-before-production";
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET is required in production");
+  return "demo-auth-secret-change-before-production";
 }
 
 function sign(value: string) {
@@ -58,7 +60,7 @@ export function validateAdminCredentials(username: string, password: string) {
     return username === envUser && verifyPbkdf2(password, envHash);
   }
 
-  return username === "admin" && password === "admin";
+  return process.env.NODE_ENV !== "production" && username === "admin" && password === "admin";
 }
 
 export async function setAdminCookie(username: string) {

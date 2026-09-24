@@ -9,13 +9,25 @@ const SOURCE = "poleas-rp" as const;
 const dataFile = path.join(process.cwd(), "data", "demo-responses.json");
 const memory = globalThis as typeof globalThis & { __rpResponses?: SurveyResponse[]; __rpPool?: Pool };
 
-const pgEnabled = () => Boolean(process.env.DATABASE_URL);
+const pgEnabled = () => Boolean(process.env.DATABASE_URL || process.env.PGHOST);
 const uuid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 
 function pool() {
-  if (!memory.__rpPool) memory.__rpPool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.PG_SSL === "true" ? { rejectUnauthorized: false } : undefined });
+  if (!memory.__rpPool) {
+    memory.__rpPool = new Pool({
+      connectionString: process.env.DATABASE_URL || undefined,
+      ssl: process.env.PG_SSL === "true" ? { rejectUnauthorized: false } : undefined
+    });
+  }
   return memory.__rpPool;
+}
+
+/** Lightweight readiness check used by the container healthcheck. */
+export async function checkDatabase() {
+  if (!pgEnabled()) return true;
+  await pool().query("select 1");
+  return true;
 }
 
 function fromRow(row: any): SurveyResponse {
