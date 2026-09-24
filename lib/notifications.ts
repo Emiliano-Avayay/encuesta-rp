@@ -91,13 +91,17 @@ export async function notifySurveyResponse(response: SurveyResponse) {
     greetingTimeout: 10_000,
     socketTimeout: 10_000
   });
-  await transporter.sendMail({
+  const result = await transporter.sendMail({
     from: process.env.NOTIFICATION_FROM,
-    to: recipients().join(", "),
+    to: recipients(),
     replyTo: response.customer.email || undefined,
     subject: `Nueva encuesta: ${response.customer.company}`,
     text,
     html
+  });
+  console.info("Survey notification submitted to SMTP", {
+    accepted: result.accepted.length,
+    rejected: result.rejected.length
   });
   return true;
 }
