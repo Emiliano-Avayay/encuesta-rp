@@ -10,6 +10,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Usuario o contrasena incorrectos." }, { status: 401 });
   }
 
-  await setAdminCookie(username);
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const secure = new URL(request.url).protocol === "https:" || forwardedProtocol === "https";
+  await setAdminCookie(username, secure);
   return NextResponse.json({ ok: true });
 }

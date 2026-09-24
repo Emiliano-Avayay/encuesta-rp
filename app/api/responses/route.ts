@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSurveyResponse, listResponses } from "@/lib/store";
 import { requireAdmin } from "@/lib/auth";
+import { notifySurveyResponse } from "@/lib/notifications";
 import { validateSurveyPayload } from "@/lib/validation";
 
 export async function GET(request: Request) {
@@ -29,6 +30,12 @@ export async function POST(request: Request) {
 
   try {
     const response = await createSurveyResponse(payload);
+    try {
+      await notifySurveyResponse(response);
+    } catch (error) {
+      // Notifications must never make an already persisted survey fail.
+      console.error("Unable to send survey notification", error);
+    }
     return NextResponse.json({ response }, { status: 201 });
   } catch (error: any) {
     const message = String(error?.message || "");

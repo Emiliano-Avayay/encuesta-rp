@@ -1,13 +1,14 @@
 "use client";
 
 import { Lock, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LoginForm() {
   const router = useRouter();
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -32,25 +33,22 @@ export function LoginForm() {
 
   return (
     <form onSubmit={submit} className="w-full border-t-4 border-rp-orange bg-white p-7 shadow-sm">
-      <div className="mb-6 flex h-12 w-12 items-center justify-center bg-rp-orange text-white">
-        <Lock />
-      </div>
+      <Image src="/brand/logo-rp.webp" alt="Poleas RP" width={56} height={56} className="mb-6 h-14 w-14" priority />
       <h1 className="text-3xl font-black uppercase text-rp-graphite">Panel privado RP</h1>
-      <p className="mt-2 text-sm font-semibold text-zinc-600">
-        Acceso exclusivo para personal autorizado. En modo demo usa admin / admin.
-      </p>
+      <p className="mt-2 text-sm font-semibold text-zinc-600">Acceso exclusivo para personal autorizado.</p>
       <label className="mt-6 block">
         <span className="field-label">Usuario</span>
-        <input className="field-input" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
+        <input className="field-input" name="rp-admin-user" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" />
       </label>
       <label className="mt-4 block">
-        <span className="field-label">Contrasena</span>
+        <span className="field-label">Contraseña</span>
         <input
           className="field-input"
+          name="rp-admin-password"
           value={password}
           type="password"
           onChange={(event) => setPassword(event.target.value)}
-          autoComplete="current-password"
+          autoComplete="new-password"
         />
       </label>
       {error && <p className="field-error">{error}</p>}

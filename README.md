@@ -7,6 +7,7 @@ Sistema de encuestas de satisfacción de RP Poleas: encuesta pública por enlace
 - Encuesta pública en `/encuesta/venta`.
 - Panel administrador en `/staff-rp/login`.
 - Consulta, análisis y exportación CSV de respuestas.
+- Planes de acción privados, organizados por las cinco categorías y con un máximo de 5 documentos por categoría.
 - Persistencia en PostgreSQL para producción.
 - Endpoint de salud no autenticado: `/api/health`.
 
@@ -70,7 +71,7 @@ docker compose up -d --build
 docker compose down
 ```
 
-No use `docker compose down -v` normalmente: elimina el volumen `postgres_data` y, con él, las respuestas persistidas.
+No use `docker compose down -v` normalmente: elimina los volúmenes `postgres_data` y `action_plans_data`, junto con las respuestas y documentos persistidos.
 
 ## Desarrollo local
 
@@ -92,6 +93,11 @@ La encuesta se abre en `http://localhost:3000/encuesta/venta` y el panel en `htt
 | `WEB_PORT` | Puerto local expuesto, por defecto `3000`. |
 | `DATABASE_URL` | Opcional para desarrollo o PostgreSQL externo; Docker usa los parámetros internos de Compose. |
 | `PG_SSL` | Habilita SSL solo para una conexión PostgreSQL externa. |
+| `NOTIFICATION_EMAIL` | Destinatario(s) de cada respuesta, separados por comas. Dejar vacío para desactivar notificaciones. |
+| `NOTIFICATION_FROM` | Dirección remitente verificada en el proveedor SMTP. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE` | Configuración SMTP. Para Gmail con STARTTLS use `smtp.gmail.com`, puerto `587` y `SMTP_SECURE=false`. |
+| `APP_URL` | Opcional: URL pública sin barra final para enlazar el panel desde el correo. |
+| `ACTION_PLANS_MAX_FILE_SIZE` | Tamaño máximo de cada documento del Plan de acción, en bytes. Por defecto `20971520` (20 MB). |
 
 ## Despliegue
 
@@ -106,7 +112,7 @@ El servidor HTTP escucha en `0.0.0.0` dentro del contenedor, pero Compose lo enl
 
 ## Backup / persistencia
 
-Las respuestas se guardan en PostgreSQL, en el volumen nombrado `postgres_data`. El volumen sobrevive a `docker compose down` y a reconstrucciones de imágenes. Realice backups periódicos, por ejemplo:
+Las respuestas se guardan en PostgreSQL, en el volumen nombrado `postgres_data`; los documentos de Plan de acción se guardan fuera de PostgreSQL, en el volumen nombrado `action_plans_data`. Ambos sobreviven a `docker compose down` y a reconstrucciones de imágenes. Realice backups periódicos, por ejemplo:
 
 ```bash
 docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > encuestas-rp-backup.sql
@@ -114,11 +120,14 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB
 
 Guarde el backup fuera del servidor o del volumen Docker. El esquema se inicializa automáticamente solo al crear un volumen PostgreSQL nuevo.
 
+En instalaciones existentes, aplique el bloque `action_plans` de `db/schema.sql` una vez antes de desplegar esta versión; los scripts de inicialización de PostgreSQL solo se ejecutan al crear el volumen por primera vez. Incluya también `action_plans_data` en sus copias de seguridad de archivos.
+
 ## Seguridad
 
 - Mantenga `.env` exclusivamente en el servidor y fuera de Git.
 - Use secretos y contraseña de administrador robustos; producción no permite las credenciales demo.
 - No exponga PostgreSQL al host ni a Internet.
+- Para Gmail, use una contraseña de aplicación en `SMTP_PASSWORD`; no use ni versionar la contraseña principal.
 - La CI no hace deploy y no contiene secretos. Si en el futuro una integración los necesita, configúrelos en `GitHub Repository → Settings → Secrets and variables → Actions`.
 
 ## CI

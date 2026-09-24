@@ -63,12 +63,14 @@ export function validateAdminCredentials(username: string, password: string) {
   return process.env.NODE_ENV !== "production" && username === "admin" && password === "admin";
 }
 
-export async function setAdminCookie(username: string) {
+export async function setAdminCookie(username: string, secure: boolean) {
   const payload = { username, exp: Date.now() + ttlMs };
   cookies().set(cookieName, encode(payload), {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    // Secure cookies are required for public HTTPS, but browsers reject them
+    // on the local HTTP listener used for Docker development.
+    secure,
     path: "/",
     maxAge: ttlMs / 1000
   });

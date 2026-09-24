@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Download, LogOut, Table2 } from "lucide-react";
+import { BarChart3, ClipboardList, Download, LogOut, Table2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -35,6 +35,9 @@ export function AdminNav() {
           }`}
         >
           <BarChart3 size={16} /> Analisis
+        </Link>
+        <Link href="/staff-rp/plan-de-accion" className={`flex items-center gap-2 border px-3 py-2 text-sm font-black uppercase ${pathname.includes("/plan-de-accion") ? "border-rp-orange text-rp-orange" : "border-zinc-300"}`}>
+          <ClipboardList size={16} /> Plan de acción
         </Link>
         <a
           href={exportHref}
