@@ -18,6 +18,14 @@ services:
       PGUSER: ${POSTGRES_USER:?POSTGRES_USER must be set in .env}
       PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       PG_SSL: "false"
+      NOTIFICATION_EMAIL: ${NOTIFICATION_EMAIL:-}
+      NOTIFICATION_FROM: ${NOTIFICATION_FROM:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      APP_URL: ${APP_URL:-}
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     depends_on:

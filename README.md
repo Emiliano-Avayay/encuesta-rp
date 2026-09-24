@@ -92,6 +92,10 @@ La encuesta se abre en `http://localhost:3000/encuesta/venta` y el panel en `htt
 | `WEB_PORT` | Puerto local expuesto, por defecto `3000`. |
 | `DATABASE_URL` | Opcional para desarrollo o PostgreSQL externo; Docker usa los parámetros internos de Compose. |
 | `PG_SSL` | Habilita SSL solo para una conexión PostgreSQL externa. |
+| `NOTIFICATION_EMAIL` | Destinatario(s) de cada respuesta, separados por comas. Dejar vacío para desactivar notificaciones. |
+| `NOTIFICATION_FROM` | Dirección remitente verificada en el proveedor SMTP. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE` | Configuración SMTP. Para Gmail con STARTTLS use `smtp.gmail.com`, puerto `587` y `SMTP_SECURE=false`. |
+| `APP_URL` | Opcional: URL pública sin barra final para enlazar el panel desde el correo. |
 
 ## Despliegue
 
@@ -119,6 +123,7 @@ Guarde el backup fuera del servidor o del volumen Docker. El esquema se iniciali
 - Mantenga `.env` exclusivamente en el servidor y fuera de Git.
 - Use secretos y contraseña de administrador robustos; producción no permite las credenciales demo.
 - No exponga PostgreSQL al host ni a Internet.
+- Para Gmail, use una contraseña de aplicación en `SMTP_PASSWORD`; no use ni versionar la contraseña principal.
 - La CI no hace deploy y no contiene secretos. Si en el futuro una integración los necesita, configúrelos en `GitHub Repository → Settings → Secrets and variables → Actions`.
 
 ## CI
