@@ -1,0 +1,7 @@
+import { NextResponse } from "next/server";
+import { ActionPlanError, createActionPlan, listActionPlans } from "@/lib/action-plans";
+import { requireAdmin } from "@/lib/auth";
+export const runtime = "nodejs";
+export async function GET(request: Request) { try { requireAdmin(); return NextResponse.json({ documents: await listActionPlans(new URL(request.url).searchParams.get("category") || undefined) }); } catch (error) { return response(error); } }
+export async function POST(request: Request) { try { const session = requireAdmin(); const form = await request.formData(); const file = form.get("file"); if (!(file instanceof File)) throw new ActionPlanError("Seleccione un archivo válido."); const document = await createActionPlan(String(form.get("category") || ""), String(form.get("title") || ""), String(form.get("description") || ""), file, session.username); return NextResponse.json({ document }, { status: 201 }); } catch (error) { return response(error); } }
+function response(error: unknown) { if (error instanceof ActionPlanError) return NextResponse.json({ error: error.message }, { status: error.status }); if (error instanceof Error && error.message === "UNAUTHORIZED") return NextResponse.json({ error: "No autorizado" }, { status: 401 }); console.error("Action plan request failed", error); return NextResponse.json({ error: "No se pudo procesar la solicitud." }, { status: 500 }); }

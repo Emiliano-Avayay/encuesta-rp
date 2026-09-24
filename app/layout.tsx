@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./action-plans.css";
 
 export const metadata: Metadata = {
   title: "Encuesta de Satisfacción | Poleas RP",

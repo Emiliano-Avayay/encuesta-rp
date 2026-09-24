@@ -26,11 +26,15 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       APP_URL: ${APP_URL:-}
+      ACTION_PLANS_STORAGE_PATH: /app/data/action-plans
+      ACTION_PLANS_MAX_FILE_SIZE: ${ACTION_PLANS_MAX_FILE_SIZE:-20971520}
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - action_plans_data:/app/data/action-plans
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
@@ -57,3 +61,4 @@ services:
 
 volumes:
   postgres_data:
+  action_plans_data:
