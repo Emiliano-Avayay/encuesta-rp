@@ -93,18 +93,16 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 }
 
 /* Uiverse.io / SelfMadeSystem star selector, integrated with the existing RP form. */
-.star-rating-control{margin-top:1.1rem}
+.star-rating-control{margin-top:.35rem}
 .rating{display:flex;flex-direction:row-reverse;justify-content:flex-end;gap:.3rem;--stroke:#666;--fill:#ffc73a}
 .rating-star{display:contents}
 .rating input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
 .rating label{display:grid;width:3rem;height:3rem;place-items:center;cursor:pointer;border-radius:.35rem;touch-action:manipulation}
 .rating svg{width:2rem;height:2rem;overflow:visible;fill:transparent;stroke:var(--stroke);stroke-linejoin:bevel;stroke-dasharray:12;animation:idle 4s linear infinite;transition:stroke .2s,fill .5s}
-.rating label:hover svg{stroke:var(--fill)}
-.rating-star:hover~.rating-star label svg{stroke:var(--fill)}
-.rating input:checked+label svg,.rating input:checked~.rating-star label svg{transition:0s;animation:idle 4s linear infinite,yippee .75s backwards;fill:var(--fill);stroke:var(--fill);stroke-opacity:0;stroke-dasharray:0;stroke-linejoin:miter;stroke-width:8px}
+.rating svg.is-active{transition:0s;fill:var(--fill);stroke:var(--fill);stroke-opacity:0;stroke-dasharray:0;stroke-linejoin:miter;stroke-width:8px}
+.rating svg.is-selected{animation:idle 4s linear infinite,yippee .75s backwards}
 .rating input:focus-visible+label{outline:3px solid rgba(255,119,28,.35);outline-offset:2px}
 .rating input:disabled+label{cursor:not-allowed;opacity:.55}
-.star-rating-status{min-height:1.2rem;margin:.15rem 0 0;color:#777;font-size:.8rem;font-weight:700}
-.star-rating-control .no-answer-button{margin-top:.75rem}
+.star-rating-control .no-answer-button{margin-top:.2rem}
 @keyframes idle{from{stroke-dashoffset:24}}
 @keyframes yippee{0%{transform:scale(1);fill:var(--fill);fill-opacity:0;stroke-opacity:1;stroke:var(--stroke);stroke-dasharray:10;stroke-width:1px;stroke-linejoin:bevel}30%{transform:scale(0);fill:var(--fill);fill-opacity:0;stroke-opacity:1;stroke:var(--stroke);stroke-dasharray:10;stroke-width:1px;stroke-linejoin:bevel}30.1%{stroke:var(--fill);stroke-dasharray:0;stroke-linejoin:miter;stroke-width:8px}60%{transform:scale(1.2);fill:var(--fill)}}

@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   const password = String(body.password || "");
 
   if (!validateAdminCredentials(username, password)) {
-    return NextResponse.json({ error: "Usuario o contrasena incorrectos." }, { status: 401 });
+    return NextResponse.json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
   }
 
   const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
