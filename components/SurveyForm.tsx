@@ -4,6 +4,7 @@ import { AlertCircle, Check, ChevronLeft, ChevronRight, Loader2, Send } from "lu
 import { useEffect, useState } from "react";
 import { getSurvey, surveyQuestions } from "@/lib/constants";
 import { RatingSlider } from "@/components/RatingSlider";
+import { StarRating } from "@/components/StarRating";
 import type { RatingValue, SatisfactionKey, SurveyId } from "@/lib/types";
 import { validateSurveyPayload, type ValidationErrors } from "@/lib/validation";
 
@@ -61,6 +62,6 @@ export function SurveyForm({ surveyId = "venta" }: { surveyId?: SurveyId }) {
   </main>;
 }
 
-function Rating({ question, value, error, onChange }: { question: ReturnType<typeof surveyQuestions>[number]; value: RatingValue | undefined; error?: string; onChange: (value: RatingValue) => void }) { return <fieldset className="question" id={`question-${question.key}`}><legend><span>{question.order}</span>{question.label}</legend><RatingSlider label={question.label} value={value} required={question.required} onChange={onChange} onNoAnswer={() => onChange(null)} />{error && <p className="field-error">Respondé esta pregunta o seleccioná “No contestar”.</p>}</fieldset>; }
+function Rating({ question, value, error, onChange }: { question: ReturnType<typeof surveyQuestions>[number]; value: RatingValue | undefined; error?: string; onChange: (value: RatingValue) => void }) { return <fieldset className="question" id={`question-${question.key}`}><legend><span>{question.order}</span>{question.label}</legend>{question.block === "specific" ? <StarRating questionId={question.key} label={question.label} value={value} required={question.required} onChange={onChange} onNoAnswer={() => onChange(null)} /> : <RatingSlider label={question.label} value={value} required={question.required} onChange={onChange} onNoAnswer={() => onChange(null)} />}{error && <p className="field-error">Respondé esta pregunta o seleccioná “N/C / No contesta”.</p>}</fieldset>; }
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) { return <label className="field"><span>{label}</span>{children}{error && <p className="field-error">{error}</p>}</label>; }
 function Nav({ onBack, onNext, submit, loading }: { onBack?: () => void; onNext: () => void; submit?: boolean; loading?: boolean }) { return <div className="form-nav">{onBack && <button type="button" className="secondary-action" onClick={onBack}><ChevronLeft size={18}/> Volver</button>}<button type="button" className="primary-action" onClick={onNext} disabled={loading}>{loading ? <Loader2 className="animate-spin"/> : submit ? <Send size={18}/> : null}{loading ? "Enviando" : submit ? "Enviar respuesta" : <>Continuar <ChevronRight size={18}/></>}</button></div>; }

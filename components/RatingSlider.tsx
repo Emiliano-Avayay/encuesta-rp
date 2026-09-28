@@ -1,6 +1,6 @@
 "use client";
 
-import { ratingOptions } from "@/lib/constants";
+import { notEvaluableLabel, satisfactionRatingOptions } from "@/lib/constants";
 import type { RatingValue } from "@/lib/types";
 import { useState } from "react";
 
@@ -17,18 +17,18 @@ export function RatingSlider({ value, onChange, onNoAnswer, disabled, required, 
   const [dragging, setDragging] = useState(false);
   const selected = typeof value === "number" ? value : undefined;
   const noAnswer = value === null;
-  const selectedLabel = selected ? ratingOptions.find((option) => option.value === selected)?.label : undefined;
+  const selectedLabel = selected ? satisfactionRatingOptions.find((option) => option.value === selected)?.label : undefined;
 
   return (
     <div className={`rating-slider ${selected ? "has-value" : ""} ${noAnswer ? "no-answer" : ""} ${dragging ? "is-dragging" : ""}`}>
       <div className="slider-current" aria-live="polite">
-        <span className={`slider-status ${selected ? "selected" : ""}`}>{selected ? <><b>{selected}</b>{selectedLabel}</> : noAnswer ? "No contestar" : "Seleccioná una valoración"}</span>
+        <span className={`slider-status ${selected ? "selected" : ""}`}>{selected ? <><b>{selected}</b>{selectedLabel}</> : noAnswer ? notEvaluableLabel : "Seleccioná una valoración"}</span>
       </div>
       <div className="slider-track-wrap">
-        <div className="slider-track" aria-hidden="true"><i style={{ width: selected ? `${((selected - 1) / 4) * 100}%` : "0%" }} />{ratingOptions.map((option) => <em key={option.value} className={selected === option.value ? "active" : ""} style={{ left: `${((option.value - 1) / 4) * 100}%` }} />)}</div>
+        <div className="slider-track" aria-hidden="true"><i style={{ width: selected ? `${((selected - 1) / 4) * 100}%` : "0%" }} />{satisfactionRatingOptions.map((option) => <em key={option.value} className={selected === option.value ? "active" : ""} style={{ left: `${((option.value - 1) / 4) * 100}%` }} />)}</div>
         <input
           aria-label={`${label}${required ? ", obligatorio" : ""}`}
-          aria-valuetext={selected ? `${selected} — ${selectedLabel}` : noAnswer ? "No contestar" : "Sin responder"}
+          aria-valuetext={selected ? `${selected} — ${selectedLabel}` : noAnswer ? notEvaluableLabel : "Sin responder"}
           className="slider-input"
           type="range"
           min="1"
@@ -42,9 +42,9 @@ export function RatingSlider({ value, onChange, onNoAnswer, disabled, required, 
           onChange={(event) => onChange(Number(event.target.value) as Exclude<RatingValue, null>)}
         />
       </div>
-      <div className="slider-stops" aria-hidden="true">{ratingOptions.map((option) => <span key={option.value}>{option.value}</span>)}</div>
-      <div className="slider-extremes" aria-hidden="true"><span>Malo</span><span>Excelente</span></div>
-      <button type="button" className={`no-answer-button ${noAnswer ? "selected" : ""}`} aria-pressed={noAnswer} disabled={disabled} onClick={onNoAnswer}>No contestar</button>
+      <div className="slider-stops" aria-hidden="true">{satisfactionRatingOptions.map((option) => <span key={option.value}>{option.value}</span>)}</div>
+      <div className="slider-extremes" aria-hidden="true"><span>Muy insatisfecho/a</span><span>Muy satisfecho/a</span></div>
+      <button type="button" className={`no-answer-button ${noAnswer ? "selected" : ""}`} aria-pressed={noAnswer} disabled={disabled} onClick={onNoAnswer}>{notEvaluableLabel}</button>
     </div>
   );
 }

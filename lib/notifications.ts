@@ -30,7 +30,7 @@ export async function notifySurveyResponse(response: SurveyResponse) {
   const questions = surveyQuestions(response.satisfaction.surveyId);
   const ratings = questions.map((question) => ({
     label: question.label,
-    value: ratingLabel(response.satisfaction.ratings[question.key])
+    value: ratingLabel(response.satisfaction.ratings[question.key], question.block)
   }));
   const appUrl = process.env.APP_URL?.replace(/\/$/, "");
   const panelUrl = appUrl ? `${appUrl}/staff-rp/respuestas` : undefined;

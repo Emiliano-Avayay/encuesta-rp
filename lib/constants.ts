@@ -1,10 +1,15 @@
 import type { RatingValue, SatisfactionKey } from "@/lib/types";
 
-export const ratingOptions: Array<{ value: Exclude<RatingValue, null>; label: string }> = [
-  { value: 1, label: "Malo" }, { value: 2, label: "Regular" }, { value: 3, label: "Bueno" }, { value: 4, label: "Muy bueno" }, { value: 5, label: "Excelente" }
+export const satisfactionRatingOptions: Array<{ value: Exclude<RatingValue, null>; label: string }> = [
+  { value: 1, label: "Muy insatisfecho/a" },
+  { value: 2, label: "Insatisfecho/a" },
+  { value: 3, label: "Regular" },
+  { value: 4, label: "Satisfecho/a" },
+  { value: 5, label: "Muy satisfecho/a" }
 ];
-export const notEvaluableLabel = "No contestar";
-export const ratingLabel = (value: RatingValue) => value === null ? notEvaluableLabel : ratingOptions.find((item) => item.value === value)?.label || "-";
+export const notEvaluableLabel = "N/C / No contesta";
+export const satisfactionRatingLabel = (value: RatingValue) => value === null ? notEvaluableLabel : satisfactionRatingOptions.find((item) => item.value === value)?.label || "-";
+export const specificRatingLabel = (value: RatingValue) => value === null ? notEvaluableLabel : typeof value === "number" ? `${"★".repeat(value)}${"☆".repeat(5 - value)} (${value}/5)` : "-";
 export type SurveyQuestion = { key: SatisfactionKey; label: string; block: "general" | "specific"; order: number; required: boolean; active: boolean };
 export const generalQuestions: SurveyQuestion[] = [
   { key: "productQuality", label: "Calidad general de los productos", block: "general", order: 1, required: true, active: true },
@@ -28,3 +33,4 @@ export const surveys = [
 export const getSurvey = (id: string) => surveys.find((survey) => survey.id === id);
 export const surveyQuestions = (id: string) => { const survey = getSurvey(id); return survey ? [...generalQuestions, ...survey.specificQuestions] : []; };
 export const satisfactionQuestions = surveyQuestions("venta");
+export const ratingLabel = (value: RatingValue, block: SurveyQuestion["block"] = "general") => block === "specific" ? specificRatingLabel(value) : satisfactionRatingLabel(value);
