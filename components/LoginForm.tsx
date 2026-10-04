@@ -33,7 +33,7 @@ export function LoginForm() {
 
   return (
     <form onSubmit={submit} className="w-full border-t-4 border-rp-orange bg-white p-7 shadow-sm">
-      <Image src="/brand/logo-rp.webp" alt="Poleas RP" width={56} height={56} className="mb-6 h-14 w-14" priority />
+      <Image src="/brand/logo-rp.webp" alt="RP Poleas" width={56} height={56} className="mb-6 h-14 w-14" priority />
       <h1 className="text-3xl font-black uppercase text-rp-graphite">Panel privado RP</h1>
       <p className="mt-2 text-sm font-semibold text-zinc-600">Acceso exclusivo para personal autorizado.</p>
       <label className="mt-6 block">

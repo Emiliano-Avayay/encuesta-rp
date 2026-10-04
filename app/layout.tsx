@@ -3,8 +3,8 @@ import "./globals.css";
 import "./action-plans.css";
 
 export const metadata: Metadata = {
-  title: "Encuesta de Satisfacción | Poleas RP",
-  description: "Encuesta de satisfacción del cliente de Poleas RP"
+  title: "Encuesta de Satisfacción | RP Poleas",
+  description: "Encuesta de satisfacción del cliente de RP Poleas"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

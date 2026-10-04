@@ -31,3 +31,6 @@ npm-debug.log*
 .idea/
 .vscode/
 .claude/
+
+# TypeScript build info
+*.tsbuildinfo

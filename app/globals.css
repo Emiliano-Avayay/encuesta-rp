@@ -53,7 +53,16 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .no-answer-button:hover{border-color:var(--rp-orange);color:var(--rp-orange)}
 .no-answer-button.selected{border-color:var(--rp-orange);background:#fff5ed;color:var(--rp-orange)}
 .rating-slider.no-answer .slider-track{background:#e7e5e2}
-.consent{display:flex;gap:.7rem;margin-top:1.5rem;font-size:.84rem}
+.data-use-notice{margin-top:1.5rem;border-left:2px solid var(--rp-orange);padding:.2rem 0 .2rem .9rem;color:#666;font-size:.82rem;line-height:1.6}
+.data-use-notice p{margin:.1rem 0 .45rem}
+.data-use-link{border:0;background:transparent;padding:0;color:var(--rp-orange);font-size:inherit;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.data-use-modal-backdrop{position:fixed;z-index:50;inset:0;display:grid;place-items:center;background:rgba(35,35,35,.5);padding:20px}
+.data-use-modal{position:relative;width:min(100%,620px);max-height:min(720px,calc(100vh - 40px));overflow:auto;background:#fff;border-top:3px solid var(--rp-orange);box-shadow:0 16px 45px rgba(0,0,0,.22);padding:1.75rem}
+.data-use-modal h2{margin:0 2rem 1.25rem 0;font-size:1.7rem}
+.data-use-modal h3{margin:1.3rem 0 .4rem;font-size:1rem}
+.data-use-modal-content p{margin:.4rem 0;color:#666;font-size:.88rem;line-height:1.65}
+.modal-close{position:absolute;top:1rem;right:1rem;display:grid;place-items:center;border:0;background:transparent;color:var(--rp-graphite);padding:.35rem}
+.modal-confirm{margin-top:1.5rem}
 .form-nav{display:flex;justify-content:space-between;margin-top:2rem}
 .primary-action,.secondary-action{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--rp-orange);padding:.85rem 1.1rem;font-size:.84rem;font-weight:800;text-transform:uppercase}
 .primary-action{margin-left:auto;background:var(--rp-orange);color:#fff}
@@ -64,6 +73,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .admin-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;padding:1rem 0}
 .response-layout{display:grid;grid-template-columns:1fr 390px;gap:1.5rem}
 .response-row{display:grid;grid-template-columns:130px 1fr 1fr 24px;gap:.7rem;width:100%;border:0;border-top:1px solid var(--rp-line);background:#fff;padding:1rem;text-align:left}
+.response-header{display:grid;grid-template-columns:130px 1fr 1fr 24px;gap:.7rem;border-bottom:1px solid var(--rp-line);padding:.75rem 1rem;color:#666;font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
 .response-row.active{background:#fff8f3}
 .detail-panel{border-top:3px solid var(--rp-orange);background:var(--rp-smoke);padding:1.3rem}
 .answer-list>div{display:grid;grid-template-columns:1fr auto;gap:1rem;border-top:1px solid var(--rp-line);padding:.8rem 0;font-size:.82rem}
@@ -82,7 +92,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 @media(min-width:620px){.fields-grid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:700px){.response-layout,.charts,.question-analysis>div{grid-template-columns:1fr}
-.response-row{grid-template-columns:1fr auto}
+.response-row,.response-header{grid-template-columns:1fr auto}
 .admin-filters.compact{grid-template-columns:1fr}
 .mini-bars{max-width:180px}
 }
@@ -91,6 +101,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-vis
 .primary-action{margin-left:0}
 .slider-status{font-size:.75rem}
 }
+@media(max-width:480px){.data-use-modal{padding:1.35rem}.data-use-modal h2{font-size:1.45rem}}
 
 /* Uiverse.io / SelfMadeSystem star selector, integrated with the existing RP form. */
 .star-rating-control{margin-top:.35rem}

@@ -30,7 +30,7 @@ export async function notifySurveyResponse(response: SurveyResponse) {
   const questions = surveyQuestions(response.satisfaction.surveyId);
   const ratings = questions.map((question) => ({
     label: question.label,
-    value: ratingLabel(response.satisfaction.ratings[question.key], question.block)
+    value: ratingLabel(response.satisfaction.ratings[question.key], question)
   }));
   const appUrl = process.env.APP_URL?.replace(/\/$/, "");
   const panelUrl = appUrl ? `${appUrl}/staff-rp/respuestas` : undefined;
@@ -64,7 +64,7 @@ export async function notifySurveyResponse(response: SurveyResponse) {
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:640px; background:#ffffff; border-radius:12px; overflow:hidden;">
         <tr><td style="padding:24px 32px; background:#4d4d4d;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr>
-            <td style="font-family:Arial,sans-serif; font-size:18px; font-weight:800; letter-spacing:.8px; color:#ffffff;">POLEAS <span style="color:#ff771c;">RP</span></td>
+            <td style="font-family:Arial,sans-serif; font-size:18px; font-weight:800; letter-spacing:.8px; color:#ffffff;">RP <span style="color:#ff771c;">POLEAS</span></td>
             <td align="right" style="font-family:Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:1px; color:#d6d3cf;">NUEVA RESPUESTA</td>
           </tr></table>
         </td></tr>

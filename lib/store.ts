@@ -80,7 +80,9 @@ function applyFilters(records: SurveyResponse[], filters: ResponseFilters) {
 
 export async function createSurveyResponse(payload: any) {
   const record: SurveyResponse = {
-    id: uuid(), createdAt: now(), source: SOURCE, consent: Boolean(payload.consent),
+    // The public flow records authorization when the respondent submits the survey.
+    // Keep this legacy field populated without changing existing stored responses.
+    id: uuid(), createdAt: now(), source: SOURCE, consent: true,
     customer: { company: cleanText(payload.customer.company, 160), contactName: cleanText(payload.customer.contactName, 160), position: cleanText(payload.customer.position, 160), email: cleanText(payload.customer.email, 180), phone: cleanText(payload.customer.phone, 80) },
     satisfaction: { surveyId: payload.satisfaction.surveyId, module: payload.satisfaction.module, ratings: payload.satisfaction.ratings, additionalComments: cleanText(payload.satisfaction.additionalComments, 2400) },
     demo: !pgEnabled()

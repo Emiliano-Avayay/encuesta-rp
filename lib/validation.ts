@@ -16,10 +16,9 @@ export function validateSurveyPayload(payload: any) {
   const errors: ValidationErrors = {};
   const customer = payload?.customer as CustomerData | undefined;
   const satisfaction = payload?.satisfaction as SatisfactionData | undefined;
-  if (!customer?.company?.trim()) errors.company = "El cliente es obligatorio.";
-  if (!customer?.contactName?.trim()) errors.contactName = "El responsable encuestado es obligatorio.";
-  if (!payload?.consent) errors.consent = "Debes aceptar el uso de la informacion para continuar.";
-
+  if (!customer?.company?.trim()) errors.company = "La razón social es obligatoria.";
+  if (!customer?.contactName?.trim()) errors.contactName = "El nombre y apellido es obligatorio.";
+  if (!customer?.email?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email.trim())) errors.email = "Ingresá un correo electrónico válido.";
   const survey = getSurvey(satisfaction?.surveyId || "");
   if (!survey?.active || satisfaction?.module !== survey.name) errors.form = "La encuesta no es válida o no está activa.";
   for (const question of surveyQuestions(satisfaction?.surveyId || "")) {
