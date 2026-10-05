@@ -1,3 +1,3 @@
 import { redirect } from "next/navigation";
 
-export default function HomePage() { redirect("/encuesta/venta"); }
+export default function HomePage() { redirect("/venta"); }

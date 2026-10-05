@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { notEvaluableLabel } from "@/lib/constants";
-import type { RatingValue } from "@/lib/types";
 
 type StarRatingProps = {
   questionId: string;
   label: string;
-  value: RatingValue | undefined;
-  onChange: (value: Exclude<RatingValue, null>) => void;
+  value: number | null | undefined;
+  onChange: (value: number) => void;
   onNoAnswer: () => void;
   disabled?: boolean;
   required?: boolean;

@@ -7,5 +7,6 @@ import type { SurveyId } from "@/lib/types";
 export default function PublicSurveyPage({ params }: { params: { survey: string } }) {
   const survey = getSurvey(params.survey);
   if (!survey || !survey.active) notFound();
+
   return <><BrandHeader /><SurveyForm surveyId={survey.id as SurveyId} /></>;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { listResponses } from "@/lib/store";
+import { surveyQuestions } from "@/lib/constants";
 
 function csvCell(value: unknown) {
   const text = String(value ?? "").replace(/"/g, '""');
@@ -12,20 +13,18 @@ export async function GET(request: Request) {
     requireAdmin();
     const url = new URL(request.url);
     const responses = await listResponses(Object.fromEntries(url.searchParams.entries()));
-    const header = [
-      "fecha",
-      "fecha", "modulo", "cliente", "responsable_encuestado", "cargo_sector", "email", "telefono",
-      "calidad_productos", "atencion_comercial", "plazos_entrega", "informacion_tecnica", "reclamos", "logistica", "packaging", "ultima_compra", "comentario"
-    ];
+    const questions = Array.from(new Map(["venta", "distribuidores", "agroindustria", "oil-gas", "servicios-industriales"].flatMap((id) => surveyQuestions(id).map((question) => [question.key, question]))).values());
+    const header = ["fecha", "segmento", "modulo", "razon_social", "nombre_y_apellido", "cargo_sector", "email", "telefono", ...questions.map((question) => question.label), "comentario"];
     const rows = responses.map((item) => [
       item.createdAt,
+      item.satisfaction.surveyId,
       item.satisfaction.module,
       item.customer.company,
       item.customer.contactName,
       item.customer.position,
       item.customer.email,
       item.customer.phone,
-      ...Object.values(item.satisfaction.ratings),
+      ...questions.map((question) => item.satisfaction.ratings[question.key] ?? ""),
       item.satisfaction.additionalComments
     ]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");

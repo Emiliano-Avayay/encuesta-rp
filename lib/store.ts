@@ -30,8 +30,21 @@ export async function checkDatabase() {
   return true;
 }
 
+function normalizeResponse(record: SurveyResponse): SurveyResponse {
+  const satisfaction = record.satisfaction || ({} as SurveyResponse["satisfaction"]);
+  const ratings = { ...(satisfaction.ratings || {}) };
+  // Responses persisted before survey-specific IDs used the original Venta keys.
+  if (satisfaction.surveyId === "venta" || !satisfaction.surveyId) {
+    if (ratings.logistics !== undefined) ratings["venta.logistics"] = ratings.logistics;
+    if (ratings.packaging !== undefined) ratings["venta.packaging"] = ratings.packaging;
+    if (ratings.lastPurchase !== undefined) ratings["venta.purchaseSatisfaction"] = ratings.lastPurchase;
+    satisfaction.surveyId = "venta";
+    satisfaction.module = satisfaction.module || "Venta";
+  }
+  return { ...record, satisfaction: { ...satisfaction, ratings } };
+}
 function fromRow(row: any): SurveyResponse {
-  return {
+  return normalizeResponse({
     id: String(row.id),
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     customer: row.customer,
@@ -39,14 +52,14 @@ function fromRow(row: any): SurveyResponse {
     consent: row.consent,
     source: SOURCE,
     demo: row.source === "demo"
-  };
+  });
 }
 
 async function demoRecords() {
   if (memory.__rpResponses) return memory.__rpResponses;
   try {
     const parsed = JSON.parse(await readFile(dataFile, "utf8"));
-    memory.__rpResponses = Array.isArray(parsed) ? parsed.filter((record) => record.source === SOURCE) : [];
+    memory.__rpResponses = Array.isArray(parsed) ? parsed.filter((record) => record.source === SOURCE).map(normalizeResponse) : [];
   } catch { memory.__rpResponses = []; }
   return memory.__rpResponses;
 }

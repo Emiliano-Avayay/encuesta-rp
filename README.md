@@ -4,7 +4,7 @@ Sistema de encuestas de satisfacción de RP Poleas: encuesta pública por enlace
 
 ## Características
 
-- Encuesta pública en `/encuesta/venta`.
+- Encuesta pública en `/venta`.
 - Panel administrador en `/staff-rp/login`.
 - Consulta, análisis y exportación CSV de respuestas.
 - Planes de acción privados, organizados por las cinco categorías y con un máximo de 5 documentos por categoría.
@@ -80,7 +80,7 @@ npm install
 npm run dev
 ```
 
-La encuesta se abre en `http://localhost:3000/encuesta/venta` y el panel en `http://localhost:3000/staff-rp/login`. Para desarrollo con PostgreSQL externo, use `DATABASE_URL` y, si corresponde, `PG_SSL=true` en `.env.local`.
+La encuesta se abre en `http://localhost:3000/venta` y el panel en `http://localhost:3000/staff-rp/login`. Para desarrollo con PostgreSQL externo, use `DATABASE_URL` y, si corresponde, `PG_SSL=true` en `.env.local`.
 
 ## Variables de entorno
 

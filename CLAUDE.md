@@ -2,7 +2,7 @@
 
 Aplicación Next.js de encuestas de satisfacción para Poleas RP.
 
-- Encuesta pública activa: `/encuesta/venta`.
+- Encuesta pública activa: `/venta`.
 - Panel privado único: `/staff-rp`.
 - Las encuestas se definen centralmente en `lib/constants.ts`; el enlace determina el cuestionario, nunca el cliente.
 - Las cinco encuestas previstas comparten el bloque de evaluación general. Solo Venta tiene preguntas específicas activas.

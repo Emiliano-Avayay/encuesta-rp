@@ -1,47 +1,25 @@
-import type { RatingValue, SatisfactionKey } from "@/lib/types";
-
-export const satisfactionRatingOptions: Array<{ value: Exclude<RatingValue, null>; label: string }> = [
-  { value: 1, label: "Muy insatisfecho/a" },
-  { value: 2, label: "Insatisfecho/a" },
-  { value: 3, label: "Regular" },
-  { value: 4, label: "Satisfecho/a" },
-  { value: 5, label: "Muy satisfecho/a" }
-];
-export const completenessRatingOptions: Array<{ value: Exclude<RatingValue, null>; label: string }> = [
-  { value: 1, label: "Muy escasa" },
-  { value: 2, label: "Escasa" },
-  { value: 3, label: "Regular" },
-  { value: 4, label: "Completa" },
-  { value: 5, label: "Muy completa" }
-];
+import type { AnswerValue, RatingValue } from "@/lib/types";
+export const satisfactionRatingOptions = [{ value: 1, label: "Muy insatisfecho/a" }, { value: 2, label: "Insatisfecho/a" }, { value: 3, label: "Regular" }, { value: 4, label: "Satisfecho/a" }, { value: 5, label: "Muy satisfecho/a" }] as const;
+export const completenessRatingOptions = [{ value: 1, label: "Muy escasa" }, { value: 2, label: "Escasa" }, { value: 3, label: "Regular" }, { value: 4, label: "Completa" }, { value: 5, label: "Muy completa" }] as const;
 export const notEvaluableLabel = "Prefiero no responder";
-export const satisfactionRatingLabel = (value: RatingValue) => value === null ? notEvaluableLabel : satisfactionRatingOptions.find((item) => item.value === value)?.label || "-";
-export const specificRatingLabel = (value: RatingValue) => value === null ? notEvaluableLabel : typeof value === "number" ? `${"★".repeat(value)}${"☆".repeat(5 - value)} (${value}/5)` : "-";
-export type SurveyQuestion = { key: SatisfactionKey; label: string; block: "general" | "specific"; order: number; required: boolean; active: boolean; ratingOptions?: Array<{ value: Exclude<RatingValue, null>; label: string }> };
+export type QuestionKind = "slider" | "stars" | "yesNo" | "text" | "number" | "textarea";
+export type SurveyQuestion = { key: string; label: string; block: "general" | "specific"; order: number; required: boolean; active: boolean; kind: QuestionKind; ratingOptions?: ReadonlyArray<{ value: number; label: string }>; conditionalOn?: { key: string; value: AnswerValue } };
 export const generalQuestions: SurveyQuestion[] = [
-  { key: "productQuality", label: "Calidad general de los productos", block: "general", order: 1, required: true, active: true },
-  { key: "commercialAttention", label: "Atención Comercial General", block: "general", order: 2, required: true, active: true },
-  { key: "deliveryDeadlines", label: "Plazos de entrega", block: "general", order: 3, required: true, active: true },
-  { key: "technicalInformation", label: "Información técnica y catálogo", block: "general", order: 4, required: true, active: true, ratingOptions: completenessRatingOptions },
-  { key: "claimResponse", label: "Respuesta ante reclamos o inconvenientes", block: "general", order: 5, required: true, active: true }
+  { key: "productQuality", label: "Calidad general de los productos", block: "general", order: 1, required: true, active: true, kind: "slider" }, { key: "commercialAttention", label: "Atención Comercial General", block: "general", order: 2, required: true, active: true, kind: "slider" }, { key: "deliveryDeadlines", label: "Plazos de entrega", block: "general", order: 3, required: true, active: true, kind: "slider" }, { key: "technicalInformation", label: "Información técnica y catálogo", block: "general", order: 4, required: true, active: true, kind: "slider", ratingOptions: completenessRatingOptions }, { key: "claimResponse", label: "Respuesta ante reclamos o inconvenientes", block: "general", order: 5, required: true, active: true, kind: "slider" }
 ];
-const ventaQuestions: SurveyQuestion[] = [
-  { key: "logistics", label: "¿Cómo evalúa el servicio de logística?", block: "specific", order: 6, required: true, active: true },
-  { key: "packaging", label: "¿Qué le pareció el embalaje / packaging del producto?", block: "specific", order: 7, required: true, active: true },
-  { key: "lastPurchase", label: "¿Qué tan satisfecho está con su última compra realizada a RP Poleas?", block: "specific", order: 8, required: true, active: true }
-];
+const stars = (key: string, label: string, order: number): SurveyQuestion => ({ key, label, block: "specific", order, required: true, active: true, kind: "stars" });
+const yesNo = (key: string, label: string, order: number): SurveyQuestion => ({ key, label, block: "specific", order, required: true, active: true, kind: "yesNo" });
+const text = (key: string, label: string, order: number, required = true, kind: "text" | "textarea" = "text"): SurveyQuestion => ({ key, label, block: "specific", order, required, active: true, kind });
 export const surveys = [
-  { id:"venta", slug:"venta", name:"Venta", active:true, specificTitle:"Evaluación de la compra", specificNote:"Su experiencia en la última compra realizada.", specificQuestions:ventaQuestions },
-  { id:"distribuidores", slug:"distribuidores", name:"Distribuidores", active:false, specificTitle:"", specificNote:"", specificQuestions:[] },
-  { id:"oil-gas", slug:"oil-gas", name:"Oil & Gas", active:false, specificTitle:"", specificNote:"", specificQuestions:[] },
-  { id:"agroindustria", slug:"agroindustria", name:"Agroindustria", active:false, specificTitle:"", specificNote:"", specificQuestions:[] },
-  { id:"servicios-industriales", slug:"servicios-industriales", name:"Servicios industriales", active:false, specificTitle:"", specificNote:"", specificQuestions:[] }
+  { id: "venta", slug: "venta", name: "Venta", active: true, specificTitle: "Evaluación de la compra", specificNote: "Su experiencia en la última compra realizada.", specificQuestions: [stars("venta.logistics", "¿Cómo evalúa el servicio de logística?", 6), stars("venta.packaging", "¿Qué le pareció el embalaje / packaging del producto?", 7), { ...stars("venta.purchaseSatisfaction", "En una escala de 0 a 5, ¿qué tan satisfecho está con su compra en Poleas RP?", 8), kind: "slider", ratingOptions: [{ value: 0, label: "Muy insatisfecho" }, { value: 1, label: "Insatisfecho/a" }, { value: 2, label: "Poco satisfecho/a" }, { value: 3, label: "Regular" }, { value: 4, label: "Satisfecho/a" }, { value: 5, label: "Muy satisfecho" }] }] },
+  { id: "distribuidores", slug: "distribuidores", name: "Distribuidores", active: true, specificTitle: "Evaluación para distribuidores", specificNote: "Su experiencia comercial y de distribución.", specificQuestions: [stars("distributors.catalogClarity", "¿Qué tan claro y accesible le resulta el catálogo o información técnica de nuestros productos?", 6), yesNo("distributors.commercialConditions", "¿Considera que las condiciones comerciales son competitivas?", 7), stars("distributors.packaging", "¿Cómo califica el packaging y embalaje de los productos en relación a la exhibición y manipulación?", 8), yesNo("distributors.productRotation", "¿Nuestros productos tienen buena rotación en su punto de venta?", 9), yesNo("distributors.specialDeliveryDeadlines", "¿Considera adecuados los plazos de entrega para productos especiales o fuera de catálogo?", 10), { key: "distributors.maxDeliveryDays", label: "¿Qué plazo de entrega en días le parece máximo para ser competitivos?", block: "specific", order: 11, required: true, active: true, kind: "number" }, text("distributors.salesSupport", "¿Qué podríamos mejorar para apoyarlo mejor en la venta a sus clientes?", 12, true, "textarea")] },
+  { id: "agroindustria", slug: "agroindustria", name: "Agroindustria", active: true, specificTitle: "Evaluación para agroindustria", specificNote: "Su experiencia con nuestros productos.", specificQuestions: [stars("agro.catalogClarity", "¿Qué tan claro y accesible le resulta el catálogo o información técnica de nuestros productos?", 6), stars("agro.priceQuality", "¿Cómo calificaría la relación precio/calidad de nuestros productos?", 7), stars("agro.packaging", "¿Cómo evalúa el packaging en términos de organización, codificación y facilidad de almacenaje?", 8), yesNo("agro.trainingInterest", "¿Le interesaría recibir cursos de capacitación de mantenimiento y montajes de poleas y conos?", 9), text("agro.beltTypeAndSize", "Tipo y medida de correas de mayor utilización:", 10), yesNo("agro.wheelHubs", "¿Consumen mazas de rueda?", 11), text("agro.wheelHubSupply", "¿Las fabrican internamente o se abastecen del mercado estándar?", 12)] },
+  { id: "oil-gas", slug: "oil-gas", name: "Oil & Gas", active: true, specificTitle: "Evaluación para Oil & Gas", specificNote: "Su experiencia operativa y en campo.", specificQuestions: [stars("oilGas.emergencyLogistics", "¿Cómo calificaría la capacidad de respuesta logística ante urgencias?", 6), yesNo("oilGas.trainingInterest", "¿Le interesaría recibir cursos de capacitación de mantenimiento y montajes de poleas y conos?", 7), yesNo("oilGas.fieldSurvey", "¿Te serviría un relevamiento de tus componentes de transmisión en campo?", 8), yesNo("oilGas.packaging", "¿Los embalajes son adecuados para evitar daños en transporte y facilitar el manejo en campo?", 9), text("oilGas.packagingSuggestion", "¿Tenes sugerencias para mejorar en este aspecto?", 9, false, "textarea"), yesNo("oilGas.beltUse", "¿Podría informarnos tipo y medida de las correas que utilizan con mayor frecuencia?", 10), text("oilGas.beltTypeAndSize", "Tipo y medida de correas de mayor utilización:", 10)] },
+  { id: "servicios-industriales", slug: "servicios-industriales", name: "Servicios Industriales", active: true, specificTitle: "Evaluación de servicios industriales", specificNote: "Su experiencia en planta u obra.", specificQuestions: [stars("industrial.catalogClarity", "¿Qué tan claro y accesible le resulta el catálogo o información técnica de nuestros productos?", 6), stars("industrial.afterSales", "¿Cómo evalúa la atención postventa ante consultas o reclamos?", 7), yesNo("industrial.packaging", "¿El embalaje facilita la identificación y manipulación de productos en planta o en obra?", 8), yesNo("industrial.trainingInterest", "¿Le interesaría recibir cursos de capacitación de mantenimiento y montajes de poleas y conos?", 9), yesNo("industrial.performance", "¿Considera óptima la performance de nuestros productos en condiciones exigentes?", 10), { ...text("industrial.performanceReason", "¿Por qué considera que nuestros productos no alcanzan los niveles esperados de performance?", 11, true, "textarea"), conditionalOn: { key: "industrial.performance", value: "no" } }, text("industrial.productDevelopment", "¿Qué otros productos, vinculados a transmisiones o productos de fundición, le gustaría que desarrollemos?", 12, true, "textarea")] }
 ] as const;
 export const getSurvey = (id: string) => surveys.find((survey) => survey.id === id);
-export const surveyQuestions = (id: string) => { const survey = getSurvey(id); return survey ? [...generalQuestions, ...survey.specificQuestions] : []; };
+export const surveyQuestions = (id: string) => { const survey = getSurvey(id); return survey ? [...generalQuestions, ...survey.specificQuestions] as SurveyQuestion[] : []; };
+export const visibleQuestions = (id: string, ratings: Record<string, AnswerValue | undefined> = {}) => surveyQuestions(id).filter((question) => !question.conditionalOn || ratings[question.conditionalOn.key] === question.conditionalOn.value);
 export const satisfactionQuestions = surveyQuestions("venta");
-export const ratingLabel = (value: RatingValue, question?: SurveyQuestion) => {
-  if (question?.block === "specific") return specificRatingLabel(value);
-  if (value === null) return notEvaluableLabel;
-  return question?.ratingOptions?.find((item) => item.value === value)?.label || satisfactionRatingLabel(value);
-};
+export const ratingLabel = (value: AnswerValue | undefined, question?: SurveyQuestion) => { if (value === null) return notEvaluableLabel; if (value === "yes") return "Sí"; if (value === "no") return "No"; if (typeof value === "string") return value || "-"; if (typeof value !== "number") return "-"; if (question?.kind === "stars") return `${"★".repeat(value)}${"☆".repeat(5 - value)} (${value}/5)`; return question?.ratingOptions?.find((item) => item.value === value)?.label || satisfactionRatingOptions.find((item) => item.value === value)?.label || String(value); };
+export const surveyName = (id: string) => getSurvey(id)?.name || "Venta";
