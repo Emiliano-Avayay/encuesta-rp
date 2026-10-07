@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": "attachment; filename=\"encuesta-poleas-rp.csv\""
+        "Content-Disposition": "attachment; filename=\"encuesta-rp-poleas.csv\""
       }
     });
   } catch {

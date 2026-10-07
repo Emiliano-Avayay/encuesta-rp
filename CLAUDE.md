@@ -1,6 +1,6 @@
-# Poleas RP - Guía del proyecto
+# RP Poleas - Guía del proyecto
 
-Aplicación Next.js de encuestas de satisfacción para Poleas RP.
+Aplicación Next.js de encuestas de satisfacción para RP Poleas.
 
 - Encuesta pública activa: `/venta`.
 - Panel privado único: `/staff-rp`.

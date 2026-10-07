@@ -1,4 +1,4 @@
--- Poleas RP - Encuestas de satisfacción.
+-- RP Poleas - Encuestas de satisfacción.
 -- Safe for a new database. Existing FL tables are not altered or deleted.
 
 create table if not exists survey_responses (

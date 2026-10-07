@@ -48,7 +48,7 @@ export function RatingSlider({ value, onChange, onNoAnswer, disabled, required, 
           value={selected ?? min}
           disabled={disabled}
           onPointerDown={() => setDragging(true)}
-          onPointerUp={() => setDragging(false)}
+          onPointerUp={(event) => { setDragging(false); if (selected === undefined && !disabled) onChange(Number(event.currentTarget.value)); }}
           onBlur={() => setDragging(false)}
           onChange={(event) => onChange(Number(event.target.value))}
         />
