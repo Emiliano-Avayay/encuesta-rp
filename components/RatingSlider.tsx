@@ -22,19 +22,20 @@ export function RatingSlider({ value, onChange, onNoAnswer, disabled, required, 
   const max = options[options.length - 1]?.value ?? 5;
   const spread = Math.max(1, max - min);
   const thumbPosition = selected !== undefined ? ((selected - min) / spread) * 100 : undefined;
-  const intervals = Math.max(1, options.length - 1);
-  const scaleStyle = { "--slider-intervals": intervals } as CSSProperties;
-  const pointStyle = (index: number): CSSProperties => ({ gridColumnStart: Math.min(index + 1, intervals), justifySelf: index === options.length - 1 ? "end" : "start" });
+  const scaleStyle = { "--slider-count": options.length } as CSSProperties;
 
   return (
     <div className={`rating-slider ${selected !== undefined ? "has-value" : ""} ${noAnswer ? "no-answer" : ""} ${dragging ? "is-dragging" : ""}`}>
       {(selected !== undefined || noAnswer) && <div className="slider-current" aria-live="polite">
         <span className={`slider-status ${selected !== undefined ? "selected" : ""}`}>{selected !== undefined ? <><b>{selected}</b>{selectedLabel}</> : notEvaluableLabel}</span>
       </div>}
-      <div className="slider-track-wrap">
-        <div className="slider-track" aria-hidden="true" style={scaleStyle}>
-          {options.map((option, index) => <em key={option.value} style={pointStyle(index)} />)}
-          {thumbPosition !== undefined && <span className="slider-thumb" style={{ "--slider-position": `${thumbPosition}%` } as CSSProperties} />}
+      <div className="slider-scale" style={scaleStyle}>
+        <div className="slider-points" aria-hidden="true">
+          {options.map((option) => <div key={option.value} className="slider-point"><span className="slider-marker" /><span className="slider-number">{option.value}</span></div>)}
+        </div>
+        <div className="slider-rail">
+          <span className="slider-bar" aria-hidden="true" />
+          {thumbPosition !== undefined && <span className="slider-thumb" aria-hidden="true" style={{ "--slider-position": `${thumbPosition}%` } as CSSProperties} />}
         </div>
         <input
           aria-label={`${label}${required ? ", obligatorio" : ""}`}
@@ -52,7 +53,6 @@ export function RatingSlider({ value, onChange, onNoAnswer, disabled, required, 
           onChange={(event) => onChange(Number(event.target.value))}
         />
       </div>
-      <div className="slider-stops" aria-hidden="true" style={scaleStyle}>{options.map((option, index) => <span key={option.value} style={pointStyle(index)}>{option.value}</span>)}</div>
       <div className="slider-extremes" aria-hidden="true"><span>{options[0]?.label}</span><span>{options[options.length - 1]?.label}</span></div>
       <button type="button" className={`no-answer-button ${noAnswer ? "selected" : ""}`} aria-pressed={noAnswer} disabled={disabled} onClick={onNoAnswer}>{notEvaluableLabel}</button>
     </div>
