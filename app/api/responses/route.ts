@@ -4,6 +4,9 @@ import { requireAdmin } from "@/lib/auth";
 import { notifySurveyResponse } from "@/lib/notifications";
 import { validateSurveyPayload } from "@/lib/validation";
 
+// Reads the session cookie, so it must never be evaluated at build time.
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     requireAdmin();
@@ -11,7 +14,9 @@ export async function GET(request: Request) {
     const responses = await listResponses(Object.fromEntries(url.searchParams.entries()));
     return NextResponse.json({ responses });
   } catch (error) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    if (error instanceof Error && error.message === "UNAUTHORIZED") return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    console.error("Unable to list survey responses", error);
+    return NextResponse.json({ error: "No se pudieron cargar las respuestas." }, { status: 500 });
   }
 }
 

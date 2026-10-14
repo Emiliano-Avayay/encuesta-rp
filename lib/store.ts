@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { surveyQuestions } from "@/lib/constants";
 import { cleanText } from "@/lib/validation";
+import { applyFilters, sanitizeResponse } from "@/lib/response-filters";
 import type { ResponseFilters, SurveyResponse } from "@/lib/types";
 
 const SOURCE = "poleas-rp" as const;
@@ -74,23 +75,6 @@ async function persist(records: SurveyResponse[]) {
   } catch { /* demo remains in memory when storage is read-only */ }
 }
 
-function applyFilters(records: SurveyResponse[], filters: ResponseFilters) {
-  const search = filters.search?.trim().toLowerCase();
-  return records.filter((record) => {
-    if (filters.company && !record.customer.company.toLowerCase().includes(filters.company.toLowerCase())) return false;
-    if (filters.surveyId && filters.surveyId !== "all" && record.satisfaction.surveyId !== filters.surveyId) return false;
-    if (filters.segment && record.customer.segment !== filters.segment) return false;
-    if (filters.question && filters.rating) {
-      const value = record.satisfaction.ratings[filters.question as keyof typeof record.satisfaction.ratings];
-      if (String(value) !== filters.rating) return false;
-    }
-    if (filters.from && record.createdAt.slice(0, 10) < filters.from) return false;
-    if (filters.to && record.createdAt.slice(0, 10) > filters.to) return false;
-    if (!search) return true;
-    return [record.customer.company, record.customer.contactName, record.customer.email, record.customer.position].filter(Boolean).join(" ").toLowerCase().includes(search);
-  });
-}
-
 export async function createSurveyResponse(payload: any) {
   const record: SurveyResponse = {
     // The public flow records authorization when the respondent submits the survey.
@@ -116,16 +100,18 @@ export async function listResponses(filters: ResponseFilters = {}) {
   const records = pgEnabled()
     ? (await pool().query("select * from survey_responses where source = $1 order by created_at desc", [SOURCE])).rows.map(fromRow)
     : await demoRecords();
-  return applyFilters(records, filters).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  // Sanitizing is read-only: stored records (and the demo file rewritten by persist) keep their original values.
+  return applyFilters(records.map(sanitizeResponse), filters).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function getResponse(id: string) {
   if (pgEnabled()) {
     if (!/^\d+$/.test(id)) return null;
     const { rows } = await pool().query("select * from survey_responses where id = $1::integer and source = $2", [id, SOURCE]);
-    return rows[0] ? fromRow(rows[0]) : null;
+    return rows[0] ? sanitizeResponse(fromRow(rows[0])) : null;
   }
-  return (await demoRecords()).find((record) => record.id === id) || null;
+  const found = (await demoRecords()).find((record) => record.id === id);
+  return found ? sanitizeResponse(found) : null;
 }
 
 export function questionIds(surveyId = "venta") { return surveyQuestions(surveyId).map((question) => question.key); }

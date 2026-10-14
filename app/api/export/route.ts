@@ -8,6 +8,9 @@ function csvCell(value: unknown) {
   return `"${text}"`;
 }
 
+// Reads the session cookie, so it must never be evaluated at build time.
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     requireAdmin();
@@ -34,7 +37,9 @@ export async function GET(request: Request) {
         "Content-Disposition": "attachment; filename=\"encuesta-rp-poleas.csv\""
       }
     });
-  } catch {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "UNAUTHORIZED") return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    console.error("Unable to export survey responses", error);
+    return NextResponse.json({ error: "No se pudo generar la exportación." }, { status: 500 });
   }
 }

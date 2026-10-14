@@ -2,13 +2,18 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getResponse } from "@/lib/store";
 
+// Reads the session cookie, so it must never be evaluated at build time.
+export const dynamic = "force-dynamic";
+
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
     requireAdmin();
     const response = await getResponse(params.id);
     if (!response) return NextResponse.json({ error: "No encontrada" }, { status: 404 });
     return NextResponse.json({ response });
-  } catch {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "UNAUTHORIZED") return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    console.error("Unable to load survey response", error);
+    return NextResponse.json({ error: "No se pudo cargar la respuesta." }, { status: 500 });
   }
 }
