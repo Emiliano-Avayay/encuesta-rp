@@ -10,5 +10,5 @@
     "incremental": false,
     "types": ["node"]
   },
-  "include": ["tests/**/*.ts", "lib/response-filters.ts", "lib/types.ts"]
+  "include": ["tests/**/*.ts", "lib/response-filters.ts", "lib/response-companies.ts", "lib/types.ts"]
 }

@@ -1,21 +1,19 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { listResponses } from "@/lib/store";
+import { responseCompanies } from "@/lib/response-companies";
 
 // The company catalog intentionally has no UI filters. In particular, it must
 // not be built from responses that were already narrowed by `company`.
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     requireAdmin();
-    const companies = Array.from(
-      new Set(
-        (await listResponses())
-          .map((response) => response.customer.company)
-          .filter(Boolean)
-      )
-    ).sort((left, right) => left.localeCompare(right, "es"));
+    const surveyId = new URL(request.url).searchParams.get("surveyId") || "all";
+    // Do not pass any other request filters to this query. In particular, the
+    // catalog must remain available if the current result list is empty.
+    const companies = responseCompanies(await listResponses(), surveyId);
     return NextResponse.json({ companies });
   } catch (error) {
     if (error instanceof Error && error.message === "UNAUTHORIZED") {
