@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyFilters, sanitizeResponse } from "../lib/response-filters.ts";
-import type { SurveyResponse } from "../lib/types.ts";
+import { applyFilters, sanitizeResponse } from "../lib/response-filters";
+import type { SurveyResponse } from "../lib/types";
 
 const make = (id: string, overrides: Record<string, unknown> = {}): SurveyResponse => ({
   id, createdAt: "2026-09-28T11:50:24.640Z", consent: true, source: "poleas-rp",

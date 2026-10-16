@@ -3,6 +3,7 @@ node_modules/
 out/
 dist/
 build/
+.test-build/
 .env
 .env.*
 !.env.example
