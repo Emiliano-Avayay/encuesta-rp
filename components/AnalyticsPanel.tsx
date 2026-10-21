@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { calculateMetrics, isSatisfactionQuestion, percentage, type QuestionMetric } from "@/lib/analytics";
 import { generalQuestions, surveyName, surveys, visibleQuestions } from "@/lib/constants";
 import type { SurveyResponse } from "@/lib/types";
 
@@ -63,23 +64,24 @@ export function AnalyticsPanel() {
     router.replace(`${pathname}?${params}`, { scroll: false });
   }, [filters, pathname, router]);
 
-  const general = useMemo(() => metrics(responses, generalQuestions), [responses]);
+  const general = useMemo(() => calculateMetrics(responses, generalQuestions), [responses]);
   const specific = useMemo(
-    () => metrics(responses, filters.surveyId === "all" ? [] : visibleQuestions(filters.surveyId).filter(question => question.block === "specific")),
+    () => calculateMetrics(responses, filters.surveyId === "all" ? [] : visibleQuestions(filters.surveyId).filter(question => question.block === "specific")),
     [responses, filters.surveyId]
   );
 
-  return <main className="admin-shell"><header><p className="eyebrow">Indicadores</p><h1>Análisis de satisfacción</h1><p>El bloque general se compara entre segmentos; las preguntas específicas se analizan solo dentro de su segmento.</p></header><section className="admin-filters compact"><input type="date" className="field-input" value={filters.from} onChange={event => setFilters({ ...filters, from: event.target.value })}/><input type="date" className="field-input" value={filters.to} onChange={event => setFilters({ ...filters, to: event.target.value })}/><select className="field-input" value={filters.surveyId} onChange={event => setFilters({ ...filters, surveyId: event.target.value, company: "" })}><option value="all">Todas las encuestas</option>{surveys.map(survey => <option key={survey.id} value={survey.id}>{survey.name}</option>)}</select><select aria-label="Razón social" className="field-input" value={filters.company} onChange={event => setFilters({ ...filters, company: event.target.value })}><option value="">Todas las razones sociales</option>{companies.map(company => <option key={company} value={company}>{company}</option>)}</select></section>{loading ? <div className="loader"><Loader2 className="animate-spin"/>Calculando indicadores</div> : error ? <p className="empty">{error}</p> : <><section className="metrics"><Metric title="Respuestas totales" value={responses.length}/><Metric title="Satisfacción general promedio" value={general.average ? general.average.toFixed(1) : "-"}/><Metric title="No evaluables" value={general.noAnswer}/>{filters.surveyId !== "all" && <Metric title={`Promedio específico ${surveyName(filters.surveyId)}`} value={specific.average ? specific.average.toFixed(1) : "-"}/>}</section><QuestionList title="Bloque general comparable" data={general.items}/>{filters.surveyId !== "all" ? <QuestionList title={`Preguntas específicas · ${surveyName(filters.surveyId)}`} data={specific.items}/> : <p className="empty">Elegí un segmento para analizar sus preguntas específicas sin mezclarlas con las de otros segmentos.</p>}</>}</main>;
+  return <main className="admin-shell"><header><p className="eyebrow">Indicadores</p><h1>Análisis de satisfacción</h1><p>El bloque general se compara entre segmentos; las preguntas específicas se analizan solo dentro de su segmento.</p></header><section className="admin-filters compact"><input type="date" className="field-input" value={filters.from} onChange={event => setFilters({ ...filters, from: event.target.value })}/><input type="date" className="field-input" value={filters.to} onChange={event => setFilters({ ...filters, to: event.target.value })}/><select className="field-input" value={filters.surveyId} onChange={event => setFilters({ ...filters, surveyId: event.target.value, company: "" })}><option value="all">Todas las encuestas</option>{surveys.map(survey => <option key={survey.id} value={survey.id}>{survey.name}</option>)}</select><select aria-label="Razón social" className="field-input" value={filters.company} onChange={event => setFilters({ ...filters, company: event.target.value })}><option value="">Todas las razones sociales</option>{companies.map(company => <option key={company} value={company}>{company}</option>)}</select></section>{loading ? <div className="loader"><Loader2 className="animate-spin"/>Calculando indicadores</div> : error ? <p className="empty">{error}</p> : <><section className="metrics"><Metric title="Respuestas totales" value={responses.length}/><Metric title="Satisfacción general promedio" value={general.count ? general.average.toFixed(1) : "-"}/><Metric title="No evaluables" value={general.noAnswer}/>{filters.surveyId !== "all" && <Metric title={`Promedio específico ${surveyName(filters.surveyId)}`} value={specific.count ? specific.average.toFixed(1) : "-"}/>}</section><QuestionList title="Bloque general comparable" data={general.items}/>{filters.surveyId !== "all" ? <QuestionList title={`Preguntas específicas · ${surveyName(filters.surveyId)}`} data={specific.items}/> : <p className="empty">Elegí un segmento para analizar sus preguntas específicas sin mezclarlas con las de otros segmentos.</p>}</>}</main>;
 }
 
-function metrics(responses: SurveyResponse[], questions: ReturnType<typeof visibleQuestions>) {
-  const items = questions.map(question => {
-    const values = responses.map(response => response.satisfaction.ratings[question.key]).filter(value => typeof value === "number") as number[];
-    return { key: question.key, label: question.label, order: question.order, count: values.length, average: avg(values), noAnswer: responses.filter(response => response.satisfaction.ratings[question.key] === null).length };
-  });
-  const all = items.flatMap(item => responses.flatMap(response => typeof response.satisfaction.ratings[item.key] === "number" ? [response.satisfaction.ratings[item.key] as number] : []));
-  return { items, average: avg(all), noAnswer: items.reduce((number, item) => number + item.noAnswer, 0) };
-}
-function avg(values: number[]) { return values.length ? values.reduce((left, right) => left + right, 0) / values.length : 0; }
 function Metric({ title, value }: { title: string; value: string | number }) { return <div><p>{title}</p><strong>{value}</strong></div>; }
-function QuestionList({ title, data }: { title: string; data: { key: string; label: string; order: number; count: number; average: number; noAnswer: number }[] }) { return <section className="question-analysis"><h2>{title}</h2>{data.map(question => <div key={question.key}><div><strong>{question.order}. {question.label}</strong><span>{question.count} evaluables · promedio {question.average ? question.average.toFixed(2) : "-"} · {question.noAnswer} no evaluables</span></div></div>)}</section>; }
+function QuestionList({ title, data }: { title: string; data: QuestionMetric[] }) { return <section className="question-analysis"><h2>{title}</h2>{data.map(item => <QuestionResult key={item.question.key} item={item}/>)}</section>; }
+function QuestionResult({ item }: { item: QuestionMetric }) {
+  const { question } = item;
+  const answeredChoices = item.yes + item.no;
+  let detail: React.ReactNode;
+  if (isSatisfactionQuestion(question)) detail = <span>{item.count} evaluables · promedio {item.count ? `${item.average.toFixed(2)}/5` : "-"} · {item.noAnswer} no evaluables</span>;
+  else if (question.kind === "number") detail = <span>{item.count} respuestas numéricas · {item.count ? `Promedio: ${item.average.toFixed(2)}${question.unit === "days" ? " días" : ""}` : "Sin respuestas numéricas"}{item.noAnswer ? ` · ${item.noAnswer} prefieren no responder` : ""}</span>;
+  else if (question.kind === "yesNo") detail = <span>Sí: {item.yes} ({percentage(item.yes, answeredChoices).toFixed(0)}%) · No: {item.no} ({percentage(item.no, answeredChoices).toFixed(0)}%){item.noAnswer ? ` · ${item.noAnswer} prefieren no responder` : ""}</span>;
+  else detail = <><span>{item.textAnswers.length} respuestas de texto{item.noAnswer ? ` · ${item.noAnswer} prefieren no responder` : ""}</span>{item.textAnswers.length > 0 && <details><summary>Ver respuestas</summary><ul>{item.textAnswers.map((answer, index) => <li key={`${index}-${answer}`}>{answer}</li>)}</ul></details>}</>;
+  return <div><div><strong>{question.order}{question.subquestion ? ".a" : ""}. {question.label}</strong>{detail}</div></div>;
+}
