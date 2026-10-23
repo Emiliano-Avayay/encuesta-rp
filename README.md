@@ -7,7 +7,7 @@ Sistema de encuestas de satisfacción de RP Poleas: encuesta pública por enlace
 - Encuesta pública en `/venta`.
 - Panel administrador en `/staff-rp/login`.
 - Consulta, análisis y exportación CSV de respuestas.
-- Planes de acción privados, organizados por las cinco categorías y con un máximo de 5 documentos por categoría.
+- Planes de acción privados, organizados por cuatro categorías (Contactos, Encuestas, Instructivos e Informe) y con un máximo de 5 documentos por categoría.
 - Persistencia en PostgreSQL para producción.
 - Endpoint de salud no autenticado: `/api/health`.
 
@@ -120,7 +120,7 @@ docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB
 
 Guarde el backup fuera del servidor o del volumen Docker. El esquema se inicializa automáticamente solo al crear un volumen PostgreSQL nuevo.
 
-En instalaciones existentes, aplique el bloque `action_plans` de `db/schema.sql` una vez antes de desplegar esta versión; los scripts de inicialización de PostgreSQL solo se ejecutan al crear el volumen por primera vez. Incluya también `action_plans_data` en sus copias de seguridad de archivos.
+En instalaciones existentes, aplique el bloque `action_plans` de `db/schema.sql` (o, si la tabla ya existe, `db/migrations/2026-10-action-plans-categories.sql`, que aborta si hay documentos en categorías anteriores) una vez antes de desplegar esta versión; los scripts de inicialización de PostgreSQL solo se ejecutan al crear el volumen por primera vez. Incluya también `action_plans_data` en sus copias de seguridad de archivos.
 
 ## Seguridad
 
@@ -133,3 +133,14 @@ En instalaciones existentes, aplique el bloque `action_plans` de `db/schema.sql`
 ## CI
 
 GitHub Actions ejecuta instalación limpia, lint y build en cada `push` y `pull_request`.
+
+## Seguimiento de encuestas (`/staff-rp/seguimiento`)
+
+Control de empresas, estado de respuesta y marcas de WhatsApp, persistido en PostgreSQL (`follow_up_companies`, `follow_up_audit`; migración en `db/migrations/2026-10-seguimiento.sql`).
+
+Importación inicial desde la planilla (exportada como CSV; no destructiva e idempotente):
+
+```bash
+node scripts/import-seguimiento.mjs planilla.csv --report revision.csv   # dry-run
+DATABASE_URL=... node scripts/import-seguimiento.mjs planilla.csv --apply
+```

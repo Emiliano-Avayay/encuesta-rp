@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, ClipboardList, Download, LogOut, Table2 } from "lucide-react";
+import { BarChart3, ClipboardList, Download, ListChecks, LogOut, Table2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -38,6 +38,9 @@ export function AdminNav() {
         </Link>
         <Link href="/staff-rp/plan-de-accion" className={`flex items-center gap-2 border px-3 py-2 text-sm font-black uppercase ${pathname.includes("/plan-de-accion") ? "border-rp-orange text-rp-orange" : "border-zinc-300"}`}>
           <ClipboardList size={16} /> Plan de acción
+        </Link>
+        <Link href="/staff-rp/seguimiento" className={`flex items-center gap-2 border px-3 py-2 text-sm font-black uppercase ${pathname.includes("/seguimiento") ? "border-rp-orange text-rp-orange" : "border-zinc-300"}`}>
+          <ListChecks size={16} /> Seguimiento
         </Link>
         <a
           href={exportHref}
