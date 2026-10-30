@@ -83,6 +83,21 @@ test("statsBySegment devuelve las cinco encuestas", () => {
   assert.equal(stats.find((s) => s.id === "venta")!.total, 0);
 });
 
+test("eliminar recalcula todos los estados, segmentos y el último registro sin dividir por cero", () => {
+  const list = [
+    company({ id: "a", responseStatus: "responded", segment: "venta" }),
+    company({ id: "b", responseStatus: "not_responded", segment: "venta" }),
+    company({ id: "c", responseStatus: "undefined", segment: "oil-gas" })
+  ];
+  assert.deepEqual(computeStats(list.filter((c) => c.id !== "a")), { total: 2, responded: 0, notResponded: 1, undefinedCount: 1, pending: 2, rate: 0 });
+  assert.deepEqual(computeStats(list.filter((c) => c.id !== "b")), { total: 2, responded: 1, notResponded: 0, undefinedCount: 1, pending: 1, rate: 0.5 });
+  assert.deepEqual(computeStats(list.filter((c) => c.id !== "c")), { total: 2, responded: 1, notResponded: 1, undefinedCount: 0, pending: 1, rate: 0.5 });
+  const segments = statsBySegment(list.filter((c) => c.id !== "c"));
+  assert.equal(segments.find((s) => s.id === "oil-gas")!.total, 0);
+  assert.equal(segments.find((s) => s.id === "venta")!.rate, 0.5);
+  assert.deepEqual(computeStats(list.filter(() => false)), { total: 0, responded: 0, notResponded: 0, undefinedCount: 0, pending: 0, rate: 0 });
+});
+
 test("filterCompanies combina búsqueda, segmento, estado y WhatsApp", () => {
   const list = [
     company({ id: "a", name: "Cañuelas", email: "x@a.com", segment: "venta", responseStatus: "responded", whatsapp: { mariaJose: true, sergio: false, jose: false } }),

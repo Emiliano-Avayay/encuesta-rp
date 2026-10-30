@@ -5,6 +5,7 @@
     "outDir": ".test-build",
     "module": "commonjs",
     "moduleResolution": "node",
+    "jsx": "react-jsx",
     "allowImportingTsExtensions": false,
     "declaration": false,
     "incremental": false,

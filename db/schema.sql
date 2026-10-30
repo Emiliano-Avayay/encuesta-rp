@@ -53,7 +53,7 @@ create table if not exists follow_up_companies (
 create table if not exists follow_up_audit (
   id bigint generated always as identity primary key,
   company_id uuid not null,
-  action text not null check (action in ('create', 'update', 'import')),
+  action text not null check (action in ('create', 'update', 'import', 'delete')),
   changes jsonb not null,
   actor text not null,
   at timestamptz not null default now()

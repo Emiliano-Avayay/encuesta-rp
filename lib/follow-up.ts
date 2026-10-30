@@ -8,7 +8,8 @@ import {
 export class FollowUpError extends Error { constructor(message: string, public status = 400, public fields?: Record<string, string>) { super(message); } }
 
 // Sin DATABASE_URL el módulo funciona en memoria (demo); nunca escribe archivos locales.
-const globalStore = globalThis as typeof globalThis & { __rpFollowUp?: FollowUpCompany[]; __rpFollowUpPool?: Pool };
+type DemoAudit = { companyId: string; action: string; changes: unknown; actor: string; at: string };
+const globalStore = globalThis as typeof globalThis & { __rpFollowUp?: FollowUpCompany[]; __rpFollowUpPool?: Pool; __rpFollowUpAudit?: DemoAudit[] };
 const pgEnabled = () => Boolean(process.env.DATABASE_URL || process.env.PGHOST);
 function pool() { return globalStore.__rpFollowUpPool ||= new Pool({ connectionString: process.env.DATABASE_URL || undefined, ssl: process.env.PG_SSL === "true" ? { rejectUnauthorized: false } : undefined }); }
 const demo = () => {
@@ -120,8 +121,39 @@ export async function updateFollowUp(id: string, body: any, actor: string) {
   return company;
 }
 
+/** El historial se guarda antes del DELETE y sobrevive a la empresa; nunca se toca su respuesta vinculada. */
+export async function deleteFollowUp(id: string, actor: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    throw new FollowUpError("El ID de la empresa no es un UUID válido.", 400);
+  }
+  id = id.toLowerCase();
+  if (pgEnabled()) {
+    const client = await pool().connect();
+    try {
+      await client.query("begin");
+      const { rows } = await client.query("select * from follow_up_companies where id = $1 for update", [id]);
+      if (!rows[0]) throw new FollowUpError("Empresa no encontrada.", 404);
+      const before = fromRow(rows[0]);
+      await client.query("insert into follow_up_audit (company_id, action, changes, actor) values ($1,'delete',$2,$3)", [id, JSON.stringify({ before }), actor]);
+      await client.query("delete from follow_up_companies where id = $1", [id]);
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback").catch(() => undefined);
+      throw error;
+    } finally { client.release(); }
+    return;
+  }
+  const companies = demo();
+  const index = companies.findIndex((company) => company.id === id);
+  if (index === -1) throw new FollowUpError("Empresa no encontrada.", 404);
+  // Copia independiente: posteriores cambios en memoria no deben alterar la bitácora.
+  const before: FollowUpCompany = structuredClone(companies[index]);
+  (globalStore.__rpFollowUpAudit ||= []).push({ companyId: id, action: "delete", changes: { before }, actor, at: new Date().toISOString() });
+  companies.splice(index, 1);
+}
+
 export async function followUpHistory(id: string) {
-  if (!pgEnabled()) return [];
+  if (!pgEnabled()) return structuredClone((globalStore.__rpFollowUpAudit ?? []).filter((entry) => entry.companyId === id).slice(-50).reverse().map(({ action, changes, actor, at }) => ({ action, changes, actor, at })));
   const { rows } = await pool().query("select action, changes, actor, at from follow_up_audit where company_id = $1 order by at desc limit 50", [id]);
   return rows.map((r) => ({ action: r.action as string, changes: r.changes, actor: r.actor as string, at: iso(r.at) }));
 }

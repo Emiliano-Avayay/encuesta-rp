@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { FollowUpError, followUpHistory, getFollowUp, suggestedResponses, updateFollowUp } from "@/lib/follow-up";
+import { deleteFollowUp, FollowUpError, followUpHistory, getFollowUp, suggestedResponses, updateFollowUp } from "@/lib/follow-up";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +20,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const session = requireAdmin();
     if (!(await getFollowUp(params.id))) throw new FollowUpError("Empresa no encontrada.", 404);
     return NextResponse.json({ company: await updateFollowUp(params.id, await request.json(), session.username) });
+  } catch (error) { return fail(error); }
+}
+
+export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = requireAdmin();
+    await deleteFollowUp(params.id, session.username);
+    return new NextResponse(null, { status: 204 });
   } catch (error) { return fail(error); }
 }
 

@@ -1,6 +1,6 @@
 "use client";
-import { Loader2, Pencil, Plus, Search, X } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   computeStats, filterCompanies, followUpSegments, responseStatuses, segmentName, statsBySegment, whatsappPeople,
   type FollowUpCompany, type ResponseStatus, type WhatsappPerson
@@ -15,6 +15,7 @@ export function FollowUpPanel() {
   const [companies, setCompanies] = useState<FollowUpCompany[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [filters, setFilters] = useState({ search: "", segment: "all", status: "all", whatsapp: "all" });
   const [editing, setEditing] = useState<FollowUpCompany | "new" | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export function FollowUpPanel() {
         <p>Control de envío y respuesta por empresa. Los porcentajes se calculan con las empresas registradas.</p>
       </header>
       {error && <p className="field-error" role="alert">{error}</p>}
+      {notice && <p className="fu-notice" role="status">{notice}</p>}
 
       <section className="fu-kpis" aria-label="Indicadores globales">
         <Kpi label="Empresas totales" value={String(total.total)} />
@@ -110,14 +112,14 @@ export function FollowUpPanel() {
                       <input type="checkbox" className="fu-check" aria-label={`WhatsApp ${p.name} para ${c.name}`} checked={c.whatsapp[p.id]} disabled={busy === c.id} onChange={(e) => quickPatch(c, { whatsapp: { ...c.whatsapp, [p.id]: e.target.checked } })} />
                     </td>
                   ))}
-                  <td className="fu-actions"><button className="fu-icon" aria-label={`Editar ${c.name}`} onClick={() => setEditing(c)}><Pencil size={16} /> <span>Editar</span></button></td>
+                  <td className="fu-actions"><button className="fu-icon" aria-label={`Editar ${c.name}`} disabled={busy === c.id} onClick={() => setEditing(c)}><Pencil size={16} /> <span>Editar</span></button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      {editing && <EditDialog company={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={(saved) => { setCompanies((items) => items.some((i) => i.id === saved.id) ? items.map((i) => (i.id === saved.id ? saved : i)) : [...items, saved]); setEditing(null); }} />}
+      {editing && <EditDialog company={editing === "new" ? null : editing} onClose={() => setEditing(null)} onDeleted={(deleted) => { setCompanies((items) => items.filter((item) => item.id !== deleted.id)); setEditing(null); setError(""); setNotice(`Se eliminó la empresa «${deleted.name}» del seguimiento.`); }} onSaved={(saved) => { setCompanies((items) => items.some((i) => i.id === saved.id) ? items.map((i) => (i.id === saved.id ? saved : i)) : [...items, saved]); setEditing(null); }} />}
     </main>
   );
 }
@@ -128,11 +130,18 @@ function Kpi({ label, value, hint, accent }: { label: string; value: string; hin
 
 type Detail = { history: { action: string; changes: Record<string, { from: unknown; to: unknown }>; actor: string; at: string }[]; suggestions: { id: string; createdAt: string; company: string; contactName: string }[] };
 
-function EditDialog({ company, onClose, onSaved }: { company: FollowUpCompany | null; onClose: () => void; onSaved: (company: FollowUpCompany) => void }) {
+function EditDialog({ company, onClose, onSaved, onDeleted }: { company: FollowUpCompany | null; onClose: () => void; onSaved: (company: FollowUpCompany) => void; onDeleted: (company: FollowUpCompany) => void }) {
   const [draft, setDraft] = useState<Draft>(company ? { name: company.name, segment: company.segment, contactName: company.contactName ?? "", email: company.email ?? "", notes: company.notes ?? "", responseStatus: company.responseStatus, whatsapp: company.whatsapp } : blank);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const inFlight = useRef(false);
+  const dialog = useRef<HTMLDivElement>(null);
+  const deleteTrigger = useRef<HTMLButtonElement>(null);
+  const confirmationCancel = useRef<HTMLButtonElement>(null);
+  const wasConfirming = useRef(false);
   const [linked, setLinked] = useState<string | null>(company?.linkedResponseId ?? null);
 
   useEffect(() => {
@@ -140,19 +149,80 @@ function EditDialog({ company, onClose, onSaved }: { company: FollowUpCompany | 
     fetch(`/api/seguimiento/${company.id}`).then((r) => (r.ok ? r.json() : null)).then((d) => d && setDetail(d)).catch(() => undefined);
   }, [company]);
 
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    return () => { previous?.focus(); };
+  }, []);
+
+  useEffect(() => {
+    if (confirmDelete) confirmationCancel.current?.focus();
+    else if (wasConfirming.current) deleteTrigger.current?.focus();
+    wasConfirming.current = confirmDelete;
+  }, [confirmDelete]);
+
   async function submit(event: FormEvent) {
-    event.preventDefault(); setSaving(true); setMessage(""); setErrors({});
-    const response = await fetch(company ? `/api/seguimiento/${company.id}` : "/api/seguimiento", { method: company ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...draft, ...(company ? { linkedResponseId: linked } : {}) }) });
-    const data = await response.json().catch(() => ({}));
-    setSaving(false);
-    if (!response.ok) { setErrors(data.fields || {}); return setMessage(data.error || "No se pudo guardar."); }
-    onSaved(data.company);
+    event.preventDefault();
+    if (inFlight.current || confirmDelete) return;
+    inFlight.current = true;
+    setSaving(true); setMessage(""); setErrors({});
+    try {
+      const response = await fetch(company ? `/api/seguimiento/${company.id}` : "/api/seguimiento", { method: company ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...draft, ...(company ? { linkedResponseId: linked } : {}) }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { setErrors(data.fields || {}); setMessage(data.error || "No se pudo guardar."); return; }
+      onSaved(data.company);
+    } catch { setMessage("No se pudo guardar. Revisá la conexión e intentá nuevamente."); }
+    finally { inFlight.current = false; setSaving(false); }
+  }
+
+  async function removeCompany() {
+    if (!company || !confirmDelete || inFlight.current) return;
+    inFlight.current = true;
+    setDeleting(true); setMessage("");
+    try {
+      const response = await fetch(`/api/seguimiento/${company.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setMessage(data.error || "No se pudo eliminar la empresa. Intentá nuevamente.");
+        return;
+      }
+      onDeleted(company);
+    } catch { setMessage("No se pudo eliminar la empresa. Revisá la conexión e intentá nuevamente."); }
+    finally { inFlight.current = false; setDeleting(false); }
+  }
+
+  function cancelDelete() {
+    if (inFlight.current) return;
+    setConfirmDelete(false); setMessage("");
   }
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
   return (
-    <div className="fu-modal" role="dialog" aria-modal="true" aria-label={company ? "Editar empresa" : "Nueva empresa"}>
-      <form className="fu-dialog" onSubmit={submit}>
+    <div ref={dialog} className="fu-modal" role={confirmDelete ? "alertdialog" : "dialog"} aria-modal="true" aria-label={confirmDelete ? "Eliminar empresa" : company ? "Editar empresa" : "Nueva empresa"} aria-describedby={confirmDelete ? "fu-delete-description" : undefined} aria-busy={saving || deleting} onKeyDown={(event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (!inFlight.current) { if (confirmDelete) cancelDelete(); else onClose(); }
+      }
+      if (event.key === "Tab") {
+        const controls = dialog.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, a[href]");
+        if (!controls?.length) { event.preventDefault(); return; }
+        const first = controls[0], last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    }}>
+      {confirmDelete && company ? (
+        <section className="fu-dialog fu-delete-confirm">
+          <h2>Eliminar empresa</h2>
+          <p id="fu-delete-description">¿Querés eliminar definitivamente a <strong>{company.name}</strong> del seguimiento? Esta acción no se puede deshacer. Las respuestas de encuestas y la auditoría se conservarán.</p>
+          {message && <p className="field-error" role="alert">{message}</p>}
+          <div className="fu-dialog-actions">
+            <button ref={confirmationCancel} type="button" className="fu-secondary" disabled={deleting} onClick={cancelDelete}>Cancelar</button>
+            <button type="button" className="fu-danger" disabled={deleting} onClick={removeCompany}>{deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} {deleting ? "Eliminando…" : "Eliminar definitivamente"}</button>
+          </div>
+        </section>
+      ) : <form className="fu-dialog" onSubmit={submit}>
+        <fieldset className="fu-form-content" disabled={saving}>
         <div className="fu-dialog-head"><h2>{company ? "Editar empresa" : "Nueva empresa"}</h2><button type="button" className="fu-icon" aria-label="Cerrar" onClick={onClose}><X size={18} /></button></div>
         <label>Empresa *<input className="field-input" value={draft.name} onChange={(e) => set({ name: e.target.value })} />{errors.name && <span className="field-error">{errors.name}</span>}</label>
         <label>Segmento *<select className="field-input" value={draft.segment} onChange={(e) => set({ segment: e.target.value })}>{followUpSegments.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>{errors.segment && <span className="field-error">{errors.segment}</span>}</label>
@@ -181,7 +251,9 @@ function EditDialog({ company, onClose, onSaved }: { company: FollowUpCompany | 
         {company && <small className="fu-muted">Última modificación: {company.updatedBy} · {formatDate(company.updatedAt)}</small>}
         {message && <p className="field-error" role="alert">{message}</p>}
         <div className="fu-dialog-actions"><button type="button" className="fu-secondary" onClick={onClose}>Cancelar</button><button className="primary-action" disabled={saving}>{saving ? "Guardando…" : "Guardar"}</button></div>
-      </form>
+        {company && <div className="fu-delete-zone"><button ref={deleteTrigger} type="button" className="fu-danger" disabled={saving} onClick={() => { setMessage(""); setConfirmDelete(true); }}><Trash2 size={16} /> Eliminar empresa</button></div>}
+        </fieldset>
+      </form>}
     </div>
   );
 }

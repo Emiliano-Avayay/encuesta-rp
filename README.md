@@ -144,3 +144,51 @@ Importación inicial desde la planilla (exportada como CSV; no destructiva e ide
 node scripts/import-seguimiento.mjs planilla.csv --report revision.csv   # dry-run
 DATABASE_URL=... node scripts/import-seguimiento.mjs planilla.csv --apply
 ```
+
+El modal **Editar empresa** permite eliminar una empresa existente, de cualquier segmento, con confirmación secundaria que muestra su nombre guardado. La eliminación requiere sesión administrativa y un UUID válido. Solo afecta a `follow_up_companies`: conserva `survey_responses`, las respuestas vinculadas, los análisis y los planes de acción. La interfaz recalcula el listado y sus indicadores sin recargar ni perder filtros.
+
+`DELETE /api/seguimiento/[id]` devuelve 204 al eliminar, 400 para UUID inválido, 401 sin sesión y 404 si la empresa no existe. PostgreSQL bloquea la fila, registra la acción `delete` con `changes.before` (copia completa de la empresa, incluido nombre, segmento y vínculo), `actor` y `at`, y borra por ID dentro de la misma transacción. Cualquier error provoca rollback. La auditoría conserva el UUID sin una FK que elimine sus registros al borrar la empresa. En demo, empresa y auditoría de eliminación se mantienen en memoria durante la vida del proceso; producción requiere PostgreSQL.
+
+Para habilitar la eliminación en una instalación existente, **aplicar manualmente** `db/migrations/2026-10-seguimiento-delete.sql` antes de desplegar el código. `db/schema.sql` ya incluye el esquema para instalaciones nuevas. No se ejecutan migraciones al iniciar la aplicación ni durante el build.
+
+Procedimiento de producción (solo con autorización del responsable):
+
+1. Validar esta versión y la migración en un entorno de pruebas con una copia de seguridad restaurada. Las verificaciones de borrado se hacen únicamente sobre datos de prueba.
+2. Crear y verificar un backup. Conservar la imagen o versión anterior para una reversión de código:
+
+   ```bash
+   docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > encuestas-rp-antes-seguimiento-delete.sql
+   ```
+
+3. Aplicar únicamente la nueva migración, con la versión anterior de la aplicación aún en ejecución:
+
+   ```bash
+   docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < db/migrations/2026-10-seguimiento-delete.sql
+   ```
+
+   La migración conserva las acciones `create`, `update`, `import` y sus filas; agrega `delete`. Su transacción aborta sin cambios si el bloqueo demora más de cinco segundos. Si falla, revisar el error antes de reintentar. No ejecutar el esquema completo como sustituto de esta migración.
+
+4. Verificar la restricción sin borrar datos:
+
+   ```bash
+   docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+   select pg_get_constraintdef(oid)
+   from pg_constraint
+   where conrelid = 'follow_up_audit'::regclass
+     and conname = 'follow_up_audit_action_check';
+   SQL
+   ```
+
+5. Desplegar con `docker compose up -d --build web`, comprobar `/api/health`, el acceso administrativo y el modal; cancelar la confirmación para verificarlo sin eliminar datos reales. Si se revierte el código, mantener la restricción ampliada: es compatible con la versión anterior y no debe eliminarse el historial `delete`.
+
+Validación local:
+
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+Los tests incluyen interacción con el modal en JSDOM, autorización real de Next y fallos simulados de conexión/consultas/commit. Las pruebas de integración crean automáticamente un clúster PostgreSQL temporal (si están disponibles `postgres`, `initdb` y `pg_ctl`) o un contenedor efímero `postgres:16-alpine` con puerto aleatorio en localhost (si Docker está disponible). Comprueban migración, conservación de auditoría/respuestas/otras empresas/planes, concurrencia y rollback mediante errores reales de PostgreSQL; luego eliminan exclusivamente ese entorno temporal. Nunca utilizan `DATABASE_URL` ni la base configurada en `.env`. Si no hay servidor local ni Docker, esas pruebas de integración se informan como omitidas.
