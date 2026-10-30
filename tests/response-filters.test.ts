@@ -63,7 +63,9 @@ test("no filter: every record (valid and malformed) is kept", () => {
 test("any company filter keeps every valid match, case-insensitive, and never throws", () => {
   const all = mixed.map(sanitizeResponse);
   // bad-date / no-ratings belong to TRANSCADEN too: a defect in another field must not hide them.
-  assert.deepEqual(ids(applyFilters(all, { company: "transcaden" })), ["bad-date", "no-ratings", "v1"]);
+  // "TRANSCADEN S.A." is a different entry of the company selector, so it is not mixed in.
+  assert.deepEqual(ids(applyFilters(all, { company: "transcaden" })), ["bad-date", "no-ratings"]);
+  assert.deepEqual(ids(applyFilters(all, { company: " transcaden s.a. " })), ["v1"]);
   assert.deepEqual(ids(applyFilters(all, { company: "OTRA EMPRESA" })), ["v2"]);
   assert.deepEqual(ids(applyFilters(all, { company: "123" })), ["numeric-company"]);
   assert.deepEqual(applyFilters(all, { company: "no existe" }), []);
@@ -71,7 +73,7 @@ test("any company filter keeps every valid match, case-insensitive, and never th
 
 test("company filter combined with date, survey and search filters", () => {
   const all = mixed.map(sanitizeResponse);
-  assert.deepEqual(ids(applyFilters(all, { company: "transcaden", from: "2026-09-01", to: "2026-09-15", surveyId: "venta", search: "ana" })), ["v1"]);
+  assert.deepEqual(ids(applyFilters(all, { company: "transcaden s.a.", from: "2026-09-01", to: "2026-09-15", surveyId: "venta", search: "ana" })), ["v1"]);
   assert.deepEqual(ids(applyFilters(all, { company: "transcaden", from: "2026-09-15" })), ["no-ratings"]);
 });
 
@@ -93,4 +95,11 @@ test("sanitizing never alters valid data, ratings (incl. null) or the input obje
 
 test("an unusable date is not replaced by a made-up one", () => {
   assert.equal(sanitizeResponse(make("d", { createdAt: "basura" })).createdAt, "");
+});
+
+test("company filter never mixes companies whose name merely contains the selected one", () => {
+  const companies = ["RP", "RP Poleas", "ARPA", "rp"].map((company, index) => make(`c${index}`, { customer: { company, contactName: "Ana" } }));
+  assert.deepEqual(ids(applyFilters(companies, { company: "RP" })), ["c0", "c3"]);
+  assert.deepEqual(ids(applyFilters(companies, { company: "RP Poleas" })), ["c1"]);
+  assert.deepEqual(applyFilters(companies, { company: "Poleas" }), []);
 });

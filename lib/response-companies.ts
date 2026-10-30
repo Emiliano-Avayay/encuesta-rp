@@ -1,5 +1,10 @@
 import type { SurveyResponse } from "./types";
 
+/** Identity of a company name: the selector, the company filter and per-company grouping all compare with it. */
+export function companyKey(name: unknown) {
+  return typeof name === "string" ? name.trim().toLocaleLowerCase("es") : "";
+}
+
 /**
  * Builds the company selector catalog from responses for one survey (or all of
  * them). This deliberately receives only the survey criterion: date, search
@@ -12,7 +17,7 @@ export function responseCompanies(records: SurveyResponse[], surveyId = "all") {
     const company = response.customer?.company;
     if (typeof company !== "string" || !company.trim()) continue;
     const name = company.trim();
-    const key = name.toLocaleLowerCase("es");
+    const key = companyKey(name);
     if (!companies.has(key)) companies.set(key, name);
   }
   return Array.from(companies.values()).sort((left, right) => left.localeCompare(right, "es"));

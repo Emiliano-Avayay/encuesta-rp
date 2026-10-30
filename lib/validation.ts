@@ -23,7 +23,8 @@ export function validateSurveyPayload(payload: any) {
   for (const key of Object.keys(ratings)) if (!allowed.has(key)) errors.form = "La encuesta contiene respuestas que no corresponden al segmento.";
   for (const question of visibleQuestions(satisfaction?.surveyId || "", ratings)) {
     const value = ratings[question.key] as AnswerValue | undefined;
-    if (value === undefined || (question.required && !validAnswer(value, question)) || (!question.required && value !== undefined && value !== "" && !validAnswer(value, question))) errors[question.key] = "Respondé esta pregunta o seleccioná “Prefiero no responder”.";
+    // An optional question left unanswered must not block the submission; required ones still need an answer or a decline.
+    if ((question.required && (value === undefined || !validAnswer(value, question))) || (!question.required && value !== undefined && value !== "" && !validAnswer(value, question))) errors[question.key] = "Respondé esta pregunta o seleccioná “Prefiero no responder”.";
   }
   return { valid: Object.keys(errors).length === 0, errors };
 }

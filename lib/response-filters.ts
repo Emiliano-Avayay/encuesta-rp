@@ -1,3 +1,4 @@
+import { companyKey } from "./response-companies";
 import type { ResponseFilters, SurveyResponse } from "./types";
 
 const text = (value: unknown) => (typeof value === "string" ? value : value == null ? "" : String(value));
@@ -23,11 +24,12 @@ export function sanitizeResponse(record: SurveyResponse): SurveyResponse {
 
 export function applyFilters(records: SurveyResponse[], filters: ResponseFilters) {
   const search = filters.search?.trim().toLowerCase();
-  const company = filters.company?.trim().toLowerCase();
+  const company = companyKey(filters.company);
   return records.filter((record) => {
     const customer = record.customer || ({} as SurveyResponse["customer"]);
     const createdDay = text(record.createdAt).slice(0, 10);
-    if (company && !text(customer.company).toLowerCase().includes(company)) return false;
+    // The company comes from the selector catalog: match that exact company, never others that merely contain its name.
+    if (company && companyKey(text(customer.company)) !== company) return false;
     if (filters.surveyId && filters.surveyId !== "all" && record.satisfaction?.surveyId !== filters.surveyId) return false;
     if (filters.segment && customer.segment !== filters.segment) return false;
     if (filters.question && filters.rating) {

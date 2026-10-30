@@ -10,6 +10,8 @@ export type QuestionMetric = {
   yes: number;
   no: number;
   textAnswers: string[];
+  /** Same answers as `textAnswers`, still tied to the response and company that gave them. */
+  textEntries: { responseId: string; company: string; answer: string }[];
 };
 
 /** Only controls that present a rating scale belong in satisfaction averages. */
@@ -37,7 +39,11 @@ export function calculateMetrics(responses: SurveyResponse[], questions: SurveyQ
     const applicableResponses = responses.filter(response => isVisibleForResponse(question, response));
     const answers = applicableResponses.map(response => response.satisfaction.ratings[question.key]);
     const values = numericAnswers(responses, question);
-    const textAnswers = answers.filter((value): value is string => typeof value === "string" && value.trim() !== "");
+    const textEntries = applicableResponses.flatMap(response => {
+      const answer = response.satisfaction.ratings[question.key];
+      return typeof answer === "string" && answer.trim() !== "" ? [{ responseId: response.id, company: response.customer?.company || "", answer }] : [];
+    });
+    const textAnswers = textEntries.map(entry => entry.answer);
     return {
       question,
       applicable: applicableResponses.length,
@@ -46,7 +52,8 @@ export function calculateMetrics(responses: SurveyResponse[], questions: SurveyQ
       noAnswer: answers.filter(value => value === null).length,
       yes: answers.filter(value => value === "yes").length,
       no: answers.filter(value => value === "no").length,
-      textAnswers
+      textAnswers,
+      textEntries
     };
   });
 
