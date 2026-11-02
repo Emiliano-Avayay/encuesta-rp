@@ -5,7 +5,8 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { Pool } from "pg";
 import { setTimeout } from "node:timers/promises";
-import { createFollowUp, deleteFollowUp, FollowUpError, followUpHistory, getFollowUp, updateFollowUp } from "../lib/follow-up";
+import { createFollowUp, deleteFollowUp, FollowUpError, followUpHistory, getFollowUp, listFollowUp, updateFollowUp } from "../lib/follow-up";
+import { filterCompanies } from "../lib/follow-up-core";
 
 const native = ["postgres", "initdb", "pg_ctl"].every((cmd) => spawnSync(cmd, ["--version"]).status === 0);
 const docker = !native && spawnSync("docker", ["info", "--format", "{{.ServerVersion}}"], { timeout: 10000 }).status === 0;
@@ -46,6 +47,12 @@ test("PostgreSQL aislado: migración, auditoría, integridad, concurrencia y rol
     const query = db.query.bind(db);
     // Primero el esquema anterior: permite comprobar compatibilidad con datos existentes.
     await query(readFileSync("db/migrations/2026-10-seguimiento.sql", "utf8"));
+    // Empresa anterior a la columna cuit: debe sobrevivir a la migración con cuit NULL.
+    const legacyId = crypto.randomUUID();
+    await query("insert into follow_up_companies (id, name, name_key, segment, created_by, updated_by) values ($1,'Empresa anterior','empresa anterior','venta','antes','antes')", [legacyId]);
+    const legacyBefore = (await query("select * from follow_up_companies where id=$1", [legacyId])).rows[0];
+    const cuitMigration = readFileSync("db/migrations/2026-11-seguimiento-cuit.sql", "utf8");
+    await query(cuitMigration); await query(cuitMigration);
     await query(readFileSync("db/schema.sql", "utf8"));
     const company = await createFollowUp({ name: "Empresa vinculada", segment: "venta" }, "creador");
     await updateFollowUp(company.id, { notes: "Nota anterior" }, "editor");
@@ -109,6 +116,46 @@ test("PostgreSQL aislado: migración, auditoría, integridad, concurrencia y rol
       const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
       assert.ok(rejected.reason instanceof FollowUpError); assert.equal(rejected.reason.status, 404);
       assert.equal((await followUpHistory(target.id)).filter((h) => h.action === "delete").length, 1);
+    });
+
+    await t.test("migración cuit: idempotente, conserva empresas anteriores con NULL y restringe el formato", async () => {
+      assert.deepEqual((await query("select * from follow_up_companies where id=$1", [legacyId])).rows[0], { ...legacyBefore, cuit: null });
+      assert.equal((await query("select count(*)::int as n from information_schema.columns where table_name='follow_up_companies' and column_name='cuit'")).rows[0].n, 1);
+      assert.equal((await query("select data_type from information_schema.columns where table_name='follow_up_companies' and column_name='cuit'")).rows[0].data_type, "text");
+      await assert.rejects(query("update follow_up_companies set cuit='20-12345678-6' where id=$1", [legacyId]), /follow_up_companies_cuit_check/);
+      await assert.rejects(query("update follow_up_companies set cuit='123' where id=$1", [legacyId]));
+      // Sin UNIQUE: dos registros pueden compartir CUIT (p. ej. el mismo grupo en dos segmentos).
+      const one = await createFollowUp({ name: "Grupo A", segment: "venta", cuit: "30712345671" }, "t");
+      const two = await createFollowUp({ name: "Grupo A", segment: "oil-gas", cuit: "30712345671" }, "t");
+      assert.ok(one.id !== two.id);
+    });
+
+    await t.test("CUIT: alta, recuperación, edición, borrado voluntario y búsqueda sobre PostgreSQL", async () => {
+      const created = await createFollowUp({ name: "Con CUIT", segment: "distribuidores", cuit: "20-12345678-6" }, "creador");
+      const plain = await createFollowUp({ name: "Sin CUIT", segment: "distribuidores" }, "creador");
+      assert.equal((await query("select cuit from follow_up_companies where id=$1", [created.id])).rows[0].cuit, "20123456786");
+      assert.equal((await query("select cuit from follow_up_companies where id=$1", [plain.id])).rows[0].cuit, null);
+      assert.equal((await getFollowUp(created.id))?.cuit, "20123456786");
+      assert.equal((await getFollowUp(plain.id))?.cuit, null);
+      await assert.rejects(createFollowUp({ name: "Inválida", segment: "distribuidores", cuit: "20-12345678-0" }, "creador"), (e: unknown) => e instanceof FollowUpError && e.status === 400 && Boolean(e.fields?.cuit));
+      assert.equal((await query("select count(*)::int as n from follow_up_companies where name='Inválida'")).rows[0].n, 0);
+
+      const all = await listFollowUp();
+      assert.deepEqual(filterCompanies(all, { search: "20-12345678-6", segment: "distribuidores" }).map((c) => c.id), [created.id]);
+      assert.deepEqual(filterCompanies(all, { search: "20123456786" }).map((c) => c.id), [created.id]);
+      assert.ok(all.some((c) => c.id === legacyId && c.cuit === null));
+
+      assert.equal((await updateFollowUp(created.id, { cuit: "27-20000000-0" }, "editor")).cuit, "27200000000");
+      const quick = await updateFollowUp(created.id, { responseStatus: "responded" }, "editor");
+      assert.equal(quick.cuit, "27200000000");
+      assert.equal((await updateFollowUp(plain.id, { cuit: "30712345671" }, "editor")).cuit, "30712345671");
+      await assert.rejects(updateFollowUp(created.id, { cuit: "1234" }, "editor"), FollowUpError);
+      assert.equal((await getFollowUp(created.id))?.cuit, "27200000000");
+
+      assert.equal((await updateFollowUp(created.id, { cuit: "" }, "editor")).cuit, null);
+      assert.equal((await query("select cuit from follow_up_companies where id=$1", [created.id])).rows[0].cuit, null);
+      const history = await followUpHistory(created.id);
+      assert.deepEqual(history.find((h) => h.changes.cuit?.to === null)?.changes.cuit, { from: "27200000000", to: null });
     });
   } finally {
     await db?.end(); delete memory.__rpFollowUpPool; process.env = savedEnv;

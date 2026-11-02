@@ -30,6 +30,8 @@ export type FollowUpCompany = {
   segment: FollowUpSegment;
   contactName: string | null;
   email: string | null;
+  /** 11 dígitos sin guiones, o null si todavía no se cargó. */
+  cuit: string | null;
   responseStatus: ResponseStatus;
   whatsapp: Record<WhatsappPerson, boolean>;
   notes: string | null;
@@ -46,6 +48,7 @@ export type CompanyInput = {
   segment: FollowUpSegment;
   contactName: string | null;
   email: string | null;
+  cuit: string | null;
   responseStatus: ResponseStatus;
   whatsapp: Record<WhatsappPerson, boolean>;
   notes: string | null;
@@ -63,6 +66,39 @@ const fold = (value: string) => value.normalize("NFD").replace(/[̀-ͯ]/g, "").t
 
 const EMAIL = /^[^\s@<>()',;]+@[^\s@<>()',;]+\.[^\s@<>()',;]+$/;
 export const isValidEmail = (value: string) => EMAIL.test(value.trim());
+
+// ───────────────────────── CUIT ─────────────────────────
+
+const CUIT_WEIGHTS = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+
+/** Quita todo lo que no sea dígito: admite "20-12345678-6", "20 12345678 6" o "20123456786". */
+export const cuitDigits = (value: string) => value.replace(/\D/g, "");
+
+/** Formato visible XX-XXXXXXXX-X; también sirve para dar formato mientras se escribe. */
+export function formatCuit(value: string) {
+  const d = cuitDigits(value).slice(0, 11);
+  return d.length <= 2 ? d : d.length <= 10 ? `${d.slice(0, 2)}-${d.slice(2)}` : `${d.slice(0, 2)}-${d.slice(2, 10)}-${d.slice(10)}`;
+}
+
+/** Algoritmo oficial módulo 11: 11 dígitos y verificador = 11 - (suma ponderada mod 11); 11 → 0, 10 → inválido. */
+export function isValidCuit(value: string) {
+  if (!/^\d{11}$/.test(value)) return false;
+  const sum = CUIT_WEIGHTS.reduce((acc, weight, i) => acc + weight * Number(value[i]), 0);
+  const check = 11 - (sum % 11);
+  return check !== 10 && (check === 11 ? 0 : check) === Number(value[10]);
+}
+
+export const CUIT_ERROR = "El CUIT no es válido. Revisá que tenga 11 dígitos y el formato XX-XXXXXXXX-X.";
+
+/** Normaliza una entrada de formulario o API. Vacío → null (sin CUIT); inválido → error. */
+export function parseCuit(raw: unknown): { value: string | null; error?: string } {
+  if (raw === undefined || raw === null) return { value: null };
+  if (typeof raw !== "string") return { value: null, error: CUIT_ERROR };
+  if (!raw.trim()) return { value: null };
+  if (/[^\d\s.-]/.test(raw)) return { value: null, error: CUIT_ERROR };
+  const digits = cuitDigits(raw);
+  return isValidCuit(digits) ? { value: digits } : { value: null, error: CUIT_ERROR };
+}
 
 function clean(value: unknown, max: number) {
   return typeof value === "string" ? value.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, max) : "";
@@ -87,6 +123,11 @@ export function validateCompanyInput(raw: any, partial = false) {
     const email = clean(raw?.email, 180);
     if (email && !isValidEmail(email)) errors.email = "El correo electrónico no es válido."; else value.email = email || null;
   }
+  // Con `partial` el CUIT solo cambia si viene explícito en el cuerpo (cadena vacía o null lo borra).
+  if (!partial || has("cuit")) {
+    const cuit = parseCuit(raw?.cuit);
+    if (cuit.error) errors.cuit = cuit.error; else value.cuit = cuit.value;
+  }
   if (!partial || has("contactName")) value.contactName = clean(raw?.contactName, 160) || null;
   if (!partial || has("notes")) value.notes = clean(raw?.notes, 1000) || null;
   if (!partial || has("responseStatus")) {
@@ -103,6 +144,13 @@ export function validateCompanyInput(raw: any, partial = false) {
 
 export type FollowUpFilters = { search?: string; segment?: string; status?: string; whatsapp?: string };
 
+/** La búsqueda se trata como CUIT solo si parece uno (dígitos y separadores, 3+ dígitos); así "3M" no coincide con cualquier CUIT. */
+function matchesCuit(cuit: string | null, term: string) {
+  if (!cuit || !/^[\d\s.-]+$/.test(term)) return false;
+  const digits = cuitDigits(term);
+  return digits.length >= 3 && cuit.includes(digits);
+}
+
 export function filterCompanies(companies: FollowUpCompany[], filters: FollowUpFilters) {
   const term = fold((filters.search ?? "").trim());
   return companies.filter((c) => {
@@ -112,7 +160,7 @@ export function filterCompanies(companies: FollowUpCompany[], filters: FollowUpF
       // "none" = sin ninguna marca; el resto filtra por quién hizo el seguimiento.
       if (filters.whatsapp === "none" ? whatsappPeople.some((p) => c.whatsapp[p.id]) : !c.whatsapp[filters.whatsapp as WhatsappPerson]) return false;
     }
-    if (term && !fold(`${c.name} ${c.email ?? ""} ${c.contactName ?? ""}`).includes(term)) return false;
+    if (term && !fold(`${c.name} ${c.email ?? ""} ${c.contactName ?? ""}`).includes(term) && !matchesCuit(c.cuit, term)) return false;
     return true;
   });
 }
@@ -185,7 +233,7 @@ export function planSheetImport(rows: string[][]) {
     if (status === "undefined") issues.push({ row: at, company: name, kind: "sin_estado", detail: "Sin valor de respuesta en la planilla; queda Sin definir." });
     const on = (v: string) => v.toUpperCase() === "TRUE";
     records.push({
-      name, segment, contactName: clean(d, 160) || null, email, responseStatus: status,
+      name, segment, contactName: clean(d, 160) || null, email, cuit: null, responseStatus: status,
       whatsapp: { mariaJose: on(e), sergio: on(f), jose: on(g) },
       notes: notes.join(" · ").slice(0, 1000) || null, sourceRow: at, key
     });

@@ -28,7 +28,8 @@ create table if not exists action_plans (
 );
 create index if not exists action_plans_category_created_at_idx on action_plans (category, created_at desc);
 
--- Seguimiento y control de encuestas (Staff RP). Ver db/migrations/2026-10-seguimiento.sql.
+-- Seguimiento y control de encuestas (Staff RP). Ver db/migrations/2026-10-seguimiento.sql
+-- y, para la columna cuit en instalaciones existentes, db/migrations/2026-11-seguimiento-cuit.sql.
 create table if not exists follow_up_companies (
   id uuid primary key,
   name text not null check (length(btrim(name)) > 0),
@@ -36,6 +37,7 @@ create table if not exists follow_up_companies (
   segment text not null check (segment in ('venta', 'distribuidores', 'agroindustria', 'oil-gas', 'servicios-industriales')),
   contact_name text,
   email text,
+  cuit text constraint follow_up_companies_cuit_check check (cuit is null or cuit ~ '^[0-9]{11}$'),
   response_status text not null default 'undefined' check (response_status in ('responded', 'not_responded', 'undefined')),
   wa_maria_jose boolean not null default false,
   wa_sergio boolean not null default false,

@@ -21,7 +21,7 @@ const iso = (value: unknown) => value instanceof Date ? value.toISOString() : St
 
 function fromRow(row: any): FollowUpCompany {
   return {
-    id: row.id, name: row.name, segment: row.segment, contactName: row.contact_name, email: row.email,
+    id: row.id, name: row.name, segment: row.segment, contactName: row.contact_name, email: row.email, cuit: row.cuit ?? null,
     responseStatus: row.response_status,
     whatsapp: { mariaJose: row.wa_maria_jose, sergio: row.wa_sergio, jose: row.wa_jose },
     notes: row.notes, sourceRow: row.source_row,
@@ -49,7 +49,7 @@ const isUnique = (error: any) => error?.code === "23505";
 /** Campos que cambiaron, con valor anterior y nuevo, para la bitácora. */
 function diff(before: FollowUpCompany, after: Partial<CompanyInput>) {
   const changes: Record<string, { from: unknown; to: unknown }> = {};
-  for (const key of ["name", "segment", "contactName", "email", "responseStatus", "notes"] as const) {
+  for (const key of ["name", "segment", "contactName", "email", "cuit", "responseStatus", "notes"] as const) {
     if (key in after && after[key] !== before[key]) changes[key] = { from: before[key], to: after[key] };
   }
   if (after.whatsapp) for (const p of whatsappPeople) if (after.whatsapp[p.id] !== before.whatsapp[p.id]) changes[`whatsapp.${p.id}`] = { from: before.whatsapp[p.id], to: after.whatsapp[p.id] };
@@ -66,9 +66,9 @@ export async function createFollowUp(body: unknown, actor: string) {
     try {
       await client.query("begin");
       await client.query(
-        `insert into follow_up_companies (id, name, name_key, segment, contact_name, email, response_status, wa_maria_jose, wa_sergio, wa_jose, notes, created_by, updated_by)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)`,
-        [id, input.name, nameKey(input.name), input.segment, input.contactName, input.email, input.responseStatus, input.whatsapp.mariaJose, input.whatsapp.sergio, input.whatsapp.jose, input.notes, actor]
+        `insert into follow_up_companies (id, name, name_key, segment, contact_name, email, cuit, response_status, wa_maria_jose, wa_sergio, wa_jose, notes, created_by, updated_by)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13)`,
+        [id, input.name, nameKey(input.name), input.segment, input.contactName, input.email, input.cuit, input.responseStatus, input.whatsapp.mariaJose, input.whatsapp.sergio, input.whatsapp.jose, input.notes, actor]
       );
       await client.query("insert into follow_up_audit (company_id, action, changes, actor) values ($1,'create',$2,$3)", [id, JSON.stringify(input), actor]);
       await client.query("commit");
@@ -100,10 +100,10 @@ export async function updateFollowUp(id: string, body: any, actor: string) {
       if (Object.keys(changes).length === 0) { await client.query("rollback"); return before; }
       const next = { ...before, ...value, whatsapp: value.whatsapp ?? before.whatsapp };
       const result = await client.query(
-        `update follow_up_companies set name=$2, name_key=$3, segment=$4, contact_name=$5, email=$6, response_status=$7,
-           wa_maria_jose=$8, wa_sergio=$9, wa_jose=$10, notes=$11, linked_response_id=$12, updated_at=$13, updated_by=$14
+        `update follow_up_companies set name=$2, name_key=$3, segment=$4, contact_name=$5, email=$6, cuit=$7, response_status=$8,
+           wa_maria_jose=$9, wa_sergio=$10, wa_jose=$11, notes=$12, linked_response_id=$13, updated_at=$14, updated_by=$15
          where id=$1 returning *`,
-        [id, next.name, nameKey(next.name), next.segment, next.contactName, next.email, next.responseStatus, next.whatsapp.mariaJose, next.whatsapp.sergio, next.whatsapp.jose, next.notes, linked === undefined ? before.linkedResponseId : linked, now, actor]
+        [id, next.name, nameKey(next.name), next.segment, next.contactName, next.email, next.cuit, next.responseStatus, next.whatsapp.mariaJose, next.whatsapp.sergio, next.whatsapp.jose, next.notes, linked === undefined ? before.linkedResponseId : linked, now, actor]
       );
       await client.query("insert into follow_up_audit (company_id, action, changes, actor) values ($1,'update',$2,$3)", [id, JSON.stringify(changes), actor]);
       await client.query("commit");

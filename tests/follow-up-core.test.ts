@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  computeStats, filterCompanies, isValidEmail, nameKey, parseCsv, planSheetImport, statsBySegment, validateCompanyInput,
+  CUIT_ERROR, computeStats, cuitDigits, formatCuit, isValidCuit, parseCuit, filterCompanies, isValidEmail, nameKey, parseCsv, planSheetImport, statsBySegment, validateCompanyInput,
   type FollowUpCompany
 } from "../lib/follow-up-core";
 
 const company = (over: Partial<FollowUpCompany>): FollowUpCompany => ({
-  id: "1", name: "Empresa", segment: "venta", contactName: null, email: null, responseStatus: "undefined",
+  id: "1", name: "Empresa", segment: "venta", contactName: null, email: null, cuit: null, responseStatus: "undefined",
   whatsapp: { mariaJose: false, sergio: false, jose: false }, notes: null, sourceRow: null, linkedResponseId: null,
   createdAt: "", createdBy: "t", updatedAt: "", updatedBy: "t", ...over
 });
@@ -124,4 +124,62 @@ test("validateCompanyInput valida alta completa y parcial", () => {
   const partial = validateCompanyInput({ responseStatus: "responded" }, true);
   assert.deepEqual(partial.value, { responseStatus: "responded" });
   assert.equal(validateCompanyInput({ responseStatus: "otro" }, true).valid, false);
+});
+
+// ───────────────────────── CUIT ─────────────────────────
+test("isValidCuit aplica longitud y dígito verificador módulo 11", () => {
+  for (const ok of ["20123456786", "27200000000", "30712345671"]) assert.equal(isValidCuit(ok), true, ok);
+  // Verificador incorrecto, resto 10 (sin dígito posible), longitud y caracteres inválidos.
+  for (const bad of ["20123456787", "30693450239", "2012345678", "201234567866", "", "2012345678a"]) assert.equal(isValidCuit(bad), false, bad);
+});
+
+test("parseCuit normaliza a 11 dígitos con o sin guiones y trata vacío como sin CUIT", () => {
+  for (const input of ["20-12345678-6", "20123456786", " 20 12345678 6 ", "20.12345678.6"]) assert.deepEqual(parseCuit(input), { value: "20123456786" });
+  for (const empty of ["", "   ", null, undefined]) assert.deepEqual(parseCuit(empty), { value: null });
+  for (const bad of ["20-12345678-7", "123", "20-12345678-X", 20123456786]) assert.equal(parseCuit(bad).error, CUIT_ERROR);
+});
+
+test("formatCuit muestra XX-XXXXXXXX-X, también de forma progresiva", () => {
+  assert.equal(formatCuit("20123456786"), "20-12345678-6");
+  assert.equal(formatCuit("20-12345678-6"), "20-12345678-6");
+  assert.deepEqual(["2", "20", "201", "2012345678", "20123456786", "201234567869999"].map(formatCuit), ["2", "20", "20-1", "20-12345678", "20-12345678-6", "20-12345678-6"]);
+  assert.equal(formatCuit(""), "");
+  assert.equal(cuitDigits("20-12345678-6"), "20123456786");
+});
+
+test("validateCompanyInput: alta con CUIT válido, sin CUIT e inválido", () => {
+  const base = { name: "Alfa", segment: "venta" };
+  assert.equal(validateCompanyInput({ ...base, cuit: "20-12345678-6" }).value.cuit, "20123456786");
+  assert.equal(validateCompanyInput({ ...base, cuit: "20123456786" }).value.cuit, "20123456786");
+  const without = validateCompanyInput(base);
+  assert.equal(without.valid, true); assert.equal(without.value.cuit, null);
+  const bad = validateCompanyInput({ ...base, cuit: "20-12345678-0" });
+  assert.equal(bad.valid, false); assert.equal(bad.errors.cuit, CUIT_ERROR);
+});
+
+test("validateCompanyInput parcial no toca el CUIT salvo que venga explícito", () => {
+  assert.equal("cuit" in validateCompanyInput({ notes: "x" }, true).value, false);
+  assert.equal("cuit" in validateCompanyInput({ responseStatus: "responded" }, true).value, false);
+  assert.equal(validateCompanyInput({ cuit: "" }, true).value.cuit, null);
+  assert.equal(validateCompanyInput({ cuit: null }, true).value.cuit, null);
+  assert.equal(validateCompanyInput({ cuit: "27-20000000-0" }, true).value.cuit, "27200000000");
+  assert.equal(validateCompanyInput({ cuit: "27-20000000-1" }, true).valid, false);
+});
+
+test("filterCompanies busca por CUIT con o sin guiones y conserva los demás filtros", () => {
+  const list = [
+    company({ id: "1", name: "Alfa", cuit: "20123456786" }),
+    company({ id: "2", name: "Beta", cuit: "30712345671", segment: "oil-gas", responseStatus: "responded" }),
+    company({ id: "3", name: "Gamma 3M", cuit: null })
+  ];
+  const ids = (f: Parameters<typeof filterCompanies>[1]) => filterCompanies(list, f).map((c) => c.id);
+  for (const search of ["20123456786", "20-12345678-6", "20-1234", "12345678", "456786"]) assert.deepEqual(ids({ search }), ["1"], search);
+  assert.deepEqual(ids({ search: "30-71234567-1" }), ["2"]);
+  assert.deepEqual(ids({ search: "12345" }), ["1", "2"]);
+  assert.deepEqual(ids({ search: "20123456786", segment: "oil-gas" }), []);
+  assert.deepEqual(ids({ search: "30712345671", segment: "oil-gas", status: "responded" }), ["2"]);
+  // Empresas con CUIT NULL no rompen la búsqueda y siguen apareciendo por nombre; un término corto no se toma como CUIT.
+  assert.deepEqual(ids({ search: "3M" }), ["3"]);
+  assert.deepEqual(ids({ search: "12" }), []);
+  assert.deepEqual(ids({ search: "gamma" }), ["3"]);
 });

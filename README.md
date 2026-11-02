@@ -151,6 +151,17 @@ El modal **Editar empresa** permite eliminar una empresa existente, de cualquier
 
 Para habilitar la eliminación en una instalación existente, **aplicar manualmente** `db/migrations/2026-10-seguimiento-delete.sql` antes de desplegar el código. `db/schema.sql` ya incluye el esquema para instalaciones nuevas. No se ejecutan migraciones al iniciar la aplicación ni durante el build.
 
+### CUIT de las empresas
+
+Cada empresa puede tener un CUIT opcional (`follow_up_companies.cuit`, `text`, `NULL` permitido). Se guarda normalizado en 11 dígitos sin guiones, con una restricción `CHECK` de formato en la base, y se muestra como `XX-XXXXXXXX-X`. La normalización y la validación (longitud y dígito verificador módulo 11) viven en `lib/follow-up-core.ts` (`parseCuit`, `formatCuit`) y las usan por igual el formulario y el servidor. En ediciones parciales (cambio rápido de estado o WhatsApp) el CUIT solo se modifica si la solicitud incluye la clave `cuit`; una cadena vacía o `null` lo elimina. No hay restricción `UNIQUE`: el mismo CUIT puede repetirse hasta que el negocio defina lo contrario. El buscador del seguimiento también encuentra por CUIT, con o sin guiones (desde 3 dígitos); no hay columna adicional en la tabla.
+
+En instalaciones existentes, **aplicar manualmente antes de desplegar el código** `db/migrations/2026-11-seguimiento-cuit.sql` (idempotente, no destructiva, aborta si no obtiene el bloqueo en 5 s). Las empresas actuales quedan con `cuit = NULL`:
+
+```bash
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > encuestas-rp-antes-cuit.sql
+docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < db/migrations/2026-11-seguimiento-cuit.sql
+```
+
 Procedimiento de producción (solo con autorización del responsable):
 
 1. Validar esta versión y la migración en un entorno de pruebas con una copia de seguridad restaurada. Las verificaciones de borrado se hacen únicamente sobre datos de prueba.

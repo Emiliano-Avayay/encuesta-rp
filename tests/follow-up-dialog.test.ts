@@ -39,10 +39,11 @@ async function change(element: HTMLInputElement | HTMLSelectElement, value: stri
   });
 }
 function setupFetch(t: TestContext, companies: FollowUpCompany[], remove: () => Promise<Response> = async () => new Response(null, { status: 204 })) {
-  const calls: { url: string; method: string }[] = [];
+  const calls: { url: string; method: string; body?: any }[] = [];
   t.mock.method(globalThis, "fetch", async (url: string, init?: RequestInit) => {
-    const method = init?.method ?? "GET"; calls.push({ url, method });
+    const method = init?.method ?? "GET"; calls.push({ url, method, body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined });
     if (method === "DELETE") return remove();
+    if (method === "PATCH" || method === "POST") return Response.json({ company: { ...companies[0], ...JSON.parse(String(init?.body)) } });
     return Response.json(url === "/api/seguimiento" ? { companies } : { history: [], suggestions: [] });
   });
   return calls;
@@ -141,4 +142,50 @@ test("error de red conserva la empresa y muestra un mensaje claro", async (t) =>
   assert.match(container.querySelector('[role="alert"]')!.textContent!, /Revisá la conexión/);
   assert.match(container.querySelector('.fu-count')!.textContent!, /1 de 1/);
   assert.ok(!button("Eliminar definitivamente").disabled);
+});
+
+const cuitInput = () => [...container.querySelectorAll<HTMLInputElement>(".fu-dialog input")].find((i) => i.placeholder === "XX-XXXXXXXX-X")!;
+
+test("Nueva empresa: campo CUIT (opcional) da formato mientras se escribe y se guarda sin CUIT si queda vacío", async (t) => {
+  const calls = setupFetch(t, []); await render(); await click(button("Nueva empresa"));
+  assert.ok([...container.querySelectorAll(".fu-dialog label")].some((l) => l.textContent?.startsWith("CUIT (opcional)")));
+  await change(cuitInput(), "20123456786");
+  assert.equal(cuitInput().value, "20-12345678-6");
+  await change(container.querySelector(".fu-dialog input") as HTMLInputElement, "Empresa nueva");
+  await change(cuitInput(), "");
+  await click(button("Guardar"));
+  assert.equal(calls.find((c) => c.method === "POST")?.body.cuit, "");
+});
+
+test("CUIT inválido muestra el mensaje y el servidor lo rechaza", async (t) => {
+  setupFetch(t, []); await render(); await click(button("Nueva empresa"));
+  await change(cuitInput(), "20-12345678-0");
+  await act(async () => { cuitInput().dispatchEvent(new dom.window.FocusEvent("focusout", { bubbles: true })); });
+  assert.match(container.querySelector(".fu-dialog .field-error")?.textContent ?? "", /CUIT no es válido/);
+});
+
+test("Editar empresa: recupera el CUIT formateado, permite modificarlo y borrarlo", async (t) => {
+  const calls = setupFetch(t, [companyFixture({ cuit: "20123456786" })]); await render(); await edit();
+  assert.equal(cuitInput().value, "20-12345678-6");
+  await change(cuitInput(), "30-71234567-1");
+  await click(button("Guardar"));
+  assert.equal(calls.filter((c) => c.method === "PATCH").at(-1)?.body.cuit, "30-71234567-1");
+  await edit(); await change(cuitInput(), ""); await click(button("Guardar"));
+  assert.equal(calls.filter((c) => c.method === "PATCH").at(-1)?.body.cuit, "");
+});
+
+test("Editar empresa sin CUIT guardado muestra el campo vacío y permite cargarlo", async (t) => {
+  setupFetch(t, [companyFixture({ cuit: null })]); await render(); await edit();
+  assert.equal(cuitInput().value, "");
+});
+
+test("el buscador encuentra empresas por CUIT con y sin guiones", async (t) => {
+  setupFetch(t, [companyFixture({ cuit: "20123456786" }), companyFixture({ id: "2", name: "Otra SA", cuit: null })]); await render();
+  const search = container.querySelector(".fu-search input") as HTMLInputElement;
+  for (const term of ["20-12345678-6", "20123456786"]) {
+    await change(search, term);
+    assert.match(container.querySelector(".fu-count")!.textContent!, /1 de 2/); assert.ok(container.querySelector('[aria-label="Editar Empresa exacta S.A."]'));
+  }
+  assert.equal(container.querySelector("th")?.textContent, "Empresa");
+  assert.ok(![...container.querySelectorAll("th")].some((th) => /cuit/i.test(th.textContent ?? "")));
 });

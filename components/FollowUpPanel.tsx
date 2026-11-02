@@ -2,14 +2,14 @@
 import { Loader2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  computeStats, filterCompanies, followUpSegments, responseStatuses, segmentName, statsBySegment, whatsappPeople,
+  computeStats, filterCompanies, followUpSegments, formatCuit, parseCuit, responseStatuses, segmentName, statsBySegment, whatsappPeople,
   type FollowUpCompany, type ResponseStatus, type WhatsappPerson
 } from "@/lib/follow-up-core";
 
 const percent = (value: number) => `${(value * 100).toFixed(1).replace(".", ",")}%`;
 const formatDate = (value: string) => new Intl.DateTimeFormat("es-AR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
-type Draft = { name: string; segment: string; contactName: string; email: string; notes: string; responseStatus: ResponseStatus; whatsapp: Record<WhatsappPerson, boolean> };
-const blank: Draft = { name: "", segment: "venta", contactName: "", email: "", notes: "", responseStatus: "undefined", whatsapp: { mariaJose: false, sergio: false, jose: false } };
+type Draft = { name: string; segment: string; contactName: string; email: string; cuit: string; notes: string; responseStatus: ResponseStatus; whatsapp: Record<WhatsappPerson, boolean> };
+const blank: Draft = { name: "", segment: "venta", contactName: "", email: "", cuit: "", notes: "", responseStatus: "undefined", whatsapp: { mariaJose: false, sergio: false, jose: false } };
 
 export function FollowUpPanel() {
   const [companies, setCompanies] = useState<FollowUpCompany[]>([]);
@@ -73,7 +73,7 @@ export function FollowUpPanel() {
       </section>
 
       <section className="fu-toolbar">
-        <label className="fu-search"><Search size={16} /><input className="field-input" placeholder="Buscar empresa, correo o contacto" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} /></label>
+        <label className="fu-search"><Search size={16} /><input className="field-input" placeholder="Buscar empresa, correo, contacto o CUIT" value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} /></label>
         <select className="field-input" aria-label="Segmento" value={filters.segment} onChange={(e) => setFilters({ ...filters, segment: e.target.value })}>
           <option value="all">Todos los segmentos</option>{followUpSegments.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
@@ -131,7 +131,7 @@ function Kpi({ label, value, hint, accent }: { label: string; value: string; hin
 type Detail = { history: { action: string; changes: Record<string, { from: unknown; to: unknown }>; actor: string; at: string }[]; suggestions: { id: string; createdAt: string; company: string; contactName: string }[] };
 
 function EditDialog({ company, onClose, onSaved, onDeleted }: { company: FollowUpCompany | null; onClose: () => void; onSaved: (company: FollowUpCompany) => void; onDeleted: (company: FollowUpCompany) => void }) {
-  const [draft, setDraft] = useState<Draft>(company ? { name: company.name, segment: company.segment, contactName: company.contactName ?? "", email: company.email ?? "", notes: company.notes ?? "", responseStatus: company.responseStatus, whatsapp: company.whatsapp } : blank);
+  const [draft, setDraft] = useState<Draft>(company ? { name: company.name, segment: company.segment, contactName: company.contactName ?? "", email: company.email ?? "", cuit: formatCuit(company.cuit ?? ""), notes: company.notes ?? "", responseStatus: company.responseStatus, whatsapp: company.whatsapp } : blank);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState(""); const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -227,6 +227,7 @@ function EditDialog({ company, onClose, onSaved, onDeleted }: { company: FollowU
         <label>Empresa *<input className="field-input" value={draft.name} onChange={(e) => set({ name: e.target.value })} />{errors.name && <span className="field-error">{errors.name}</span>}</label>
         <label>Segmento *<select className="field-input" value={draft.segment} onChange={(e) => set({ segment: e.target.value })}>{followUpSegments.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>{errors.segment && <span className="field-error">{errors.segment}</span>}</label>
         <label>Correo electrónico<input className="field-input" type="email" value={draft.email} onChange={(e) => set({ email: e.target.value })} />{errors.email && <span className="field-error">{errors.email}</span>}</label>
+        <label>CUIT (opcional)<input className="field-input" inputMode="numeric" autoComplete="off" placeholder="XX-XXXXXXXX-X" value={draft.cuit} aria-invalid={Boolean(errors.cuit)} onChange={(e) => { set({ cuit: formatCuit(e.target.value) }); setErrors(({ cuit: _cuit, ...rest }) => rest); }} onBlur={() => { const { error } = parseCuit(draft.cuit); if (error) setErrors((current) => ({ ...current, cuit: error })); }} />{errors.cuit && <span className="field-error">{errors.cuit}</span>}</label>
         <label>Contacto<input className="field-input" value={draft.contactName} onChange={(e) => set({ contactName: e.target.value })} /></label>
         <label>Estado de respuesta<select className="field-input" value={draft.responseStatus} onChange={(e) => set({ responseStatus: e.target.value as ResponseStatus })}>{responseStatuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
         <fieldset><legend>Seguimiento por WhatsApp</legend>
